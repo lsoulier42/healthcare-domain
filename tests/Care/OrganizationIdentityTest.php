@@ -19,6 +19,14 @@ final class OrganizationIdentityTest extends TestCase
         new OrganizationIdentity('   ');
     }
 
+    public function testNameIsNormalizedOnConstruction(): void
+    {
+        $identity = new OrganizationIdentity('  Clinique Exemple  ');
+
+        self::assertSame('Clinique Exemple', $identity->name);
+        self::assertTrue($identity->equals(new OrganizationIdentity('Clinique Exemple')));
+    }
+
     public function testCarriesNameAndOptionalIdentifiers(): void
     {
         $identity = new OrganizationIdentity(

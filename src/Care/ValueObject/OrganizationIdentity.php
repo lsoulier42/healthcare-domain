@@ -20,19 +20,25 @@ use Healthcare\Kernel\ValueObject\Siret;
  */
 final readonly class OrganizationIdentity
 {
+    public string $name;
+
     public function __construct(
-        public string $name,
+        string $name,
         public ?Finess $finess = null,
         public ?Siren $siren = null,
         public ?Siret $siret = null,
     ) {
-        if (trim($name) === '') {
+        $name = trim($name);
+
+        if ($name === '') {
             throw new InvalidValueObject('An organization identity requires a non-blank name.');
         }
 
         if ($siren !== null && $siret !== null && !$siren->equals($siret->siren())) {
             throw new InvalidValueObject('The SIREN and SIRET must refer to the same legal entity.');
         }
+
+        $this->name = $name;
     }
 
     public function equals(self $other): bool

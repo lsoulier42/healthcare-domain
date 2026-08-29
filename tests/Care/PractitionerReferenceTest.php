@@ -52,6 +52,14 @@ final class PractitionerReferenceTest extends TestCase
         self::assertTrue($plain->equals($withIdentity));
     }
 
+    public function testIdIsNormalizedOnConstruction(): void
+    {
+        $reference = new PractitionerReference('  practitioner-1  ');
+
+        self::assertSame('practitioner-1', $reference->id);
+        self::assertTrue($reference->equals(new PractitionerReference('practitioner-1')));
+    }
+
     public function testEqualityDistinguishesIds(): void
     {
         $a = new PractitionerReference('practitioner-1');

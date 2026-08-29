@@ -14,13 +14,19 @@ use Healthcare\Kernel\Exception\InvalidValueObject;
  */
 final readonly class PractitionerReference
 {
+    public string $id;
+
     public function __construct(
-        public string $id,
+        string $id,
         public ?PractitionerIdentity $identity = null,
     ) {
-        if (trim($id) === '') {
+        $id = trim($id);
+
+        if ($id === '') {
             throw new InvalidValueObject('A practitioner reference requires a non-blank id.');
         }
+
+        $this->id = $id;
     }
 
     public function equals(self $other): bool

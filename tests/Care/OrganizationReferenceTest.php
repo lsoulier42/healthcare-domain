@@ -51,6 +51,14 @@ final class OrganizationReferenceTest extends TestCase
         self::assertTrue($plain->equals($withIdentity));
     }
 
+    public function testIdIsNormalizedOnConstruction(): void
+    {
+        $reference = new OrganizationReference('  organization-1  ');
+
+        self::assertSame('organization-1', $reference->id);
+        self::assertTrue($reference->equals(new OrganizationReference('organization-1')));
+    }
+
     public function testEqualityDistinguishesIds(): void
     {
         $a = new OrganizationReference('organization-1');

@@ -64,6 +64,14 @@ final class PatientReferenceTest extends TestCase
         self::assertTrue($withIdentity->equals($plain));
     }
 
+    public function testIdIsNormalizedOnConstruction(): void
+    {
+        $reference = new PatientReference('  patient-1  ');
+
+        self::assertSame('patient-1', $reference->id);
+        self::assertTrue($reference->equals(new PatientReference('patient-1')));
+    }
+
     public function testEqualityDistinguishesIds(): void
     {
         $a = new PatientReference('patient-1');
