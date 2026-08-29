@@ -1,6 +1,6 @@
 # healthcare-domain
 
-Shared, framework-agnostic **healthcare domain kernel** for French healthcare applications: patients, practitioners, organizations, medications, and generic clinical concepts — with normalized, checksum-validated value objects for French healthcare reference identifiers.
+Shared, framework-agnostic **healthcare domain kernel** for French healthcare applications: identity value objects, validated identifiers, profession/savoir-faire codes, and generic clinical resources — with normalized, checksum-validated value objects for French healthcare reference identifiers.
 
 [![CI](https://github.com/lsoulier42/healthcare-domain/actions/workflows/ci.yml/badge.svg)](https://github.com/lsoulier42/healthcare-domain/actions/workflows/ci.yml)
 [![PHP](https://img.shields.io/badge/php-%3E%3D8.2-777BB4?logo=php&logoColor=white)](https://www.php.net/supported-versions.php)
@@ -10,13 +10,15 @@ Shared, framework-agnostic **healthcare domain kernel** for French healthcare ap
 
 ## About
 
-`healthcare-domain` is a pure PHP **domain library**. It models concepts whose semantics remain stable across multiple healthcare applications — identity primitives, identifiers, coded concepts, and generic clinical objects — without imposing any persistence model, workflow, or reference-data catalogue.
+`healthcare-domain` is a pure PHP **domain library**. It owns reusable healthcare semantics and typed clinical resources. Consuming applications own persistence and application aggregates, and compose package identity/value objects instead of inheriting package entities.
+
+A consumer should **never have to redefine** what an INS patient identity, a practitioner professional identity, a healthcare organization identity, a profession or a professional savoir-faire means. A consumer **does** own its persistence models, application aggregates and workflows.
 
 - **Framework-free** — no Symfony, no Doctrine, no HTTP. Usable in any PHP 8.2+ project.
+- **Composition over inheritance** — the package defines semantic building blocks; consumers define their aggregates and persistence; clinical package resources refer to consumer records through typed references.
 - **No persistence contracts** — repository interfaces are the consuming application's concern.
-- **No reference-data catalogue** — externally governed terminologies (TRE_G15, TRE_R38, LOINC, SNOMED CT, EDQM, UCUM) are represented as *coded concepts*, not frozen enums or bundled code lists.
+- **No reference-data catalogue** — externally governed terminologies (TRE_G15, TRE_R38, TRE_R40, LOINC, SNOMED CT, EDQM, UCUM) are represented as *coded concepts*, not frozen enums or bundled code lists.
 - **FHIR-inspired, not a FHIR SDK** — clinical concepts follow FHIR-compatible semantics but there is no FHIR serialization/parsing.
-- **Application entities may map** to package objects rather than persist them directly.
 
 > **Status:** pre-1.0. The API is evolving by design; breaking changes are expected until `pres` and a second bounded context have validated it.
 
@@ -27,7 +29,7 @@ Shared, framework-agnostic **healthcare domain kernel** for French healthcare ap
 | `Healthcare\Kernel` | CodeSystem / Coding / CodeableConcept, Period, Quantity, Unit (UCUM), Ratio, generic Identifier, Oid, Date, validated identifiers, exceptions |
 | `Healthcare\Geographic` | Address, CountryCode, CogCode |
 | `Healthcare\Identity` | PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, HumanName, AdministrativeGender, IdentityStatus (RNIV) |
-| `Healthcare\Care` | Patient, Practitioner, PractitionerRole, Organization, ContactPoint, coded profession/specialty/category |
+| `Healthcare\Care` | PractitionerIdentity, OrganizationIdentity, PractitionerRole, PatientReference, PractitionerReference, OrganizationReference, ContactPoint, profession/savoir-faire/category codes |
 | `Healthcare\Clinical` | Encounter, ServiceRequest, Observation, ReferenceRange, DiagnosticReport, Specimen, ClinicalDocument |
 | `Healthcare\Medication` | Medication (CIS), MedicationPresentation (CIP/UCD), MedicationComponent, ActiveSubstance |
 | `Healthcare\Laboratory` | AccessionNumber |
@@ -65,7 +67,7 @@ composer require lsoulier42/healthcare-domain
 
 ## Usage
 
-### 1. Constructing a patient identity
+### 1. Composing a patient identity in an application patient record
 
 The `Healthcare\Identity` module separates five semantic concepts:
 
@@ -74,9 +76,8 @@ The `Healthcare\Identity` module separates five semantic concepts:
 - **`InsAssigningAuthority`** — the authority assigning/interpreting the matricule, identified by its OID.
 - **`InsIdentifier`** — the complete INS identifier: matricule + assigning authority.
 - **`PatientIdentity`** — strict traits + optional INS identifier + RNIV status.
-- **`Nir`** — the generic French social-security number. It is not stored as a parallel identity property on `PatientIdentity`; a consuming application that needs a NIR for billing or administrative purposes stores it separately.
 
-#### Local/provisional identity
+The application owns its patient record; it composes a `PatientIdentity` when the strict shared identity can truthfully be represented:
 
 ```php
 use Healthcare\Geographic\ValueObject\CogCode;
@@ -84,6 +85,24 @@ use Healthcare\Identity\ValueObject\AdministrativeGender;
 use Healthcare\Identity\ValueObject\PatientIdentity;
 use Healthcare\Identity\ValueObject\StrictIdentityTraits;
 use Healthcare\Kernel\ValueObject\Date;
+
+final class Patient
+{
+    public function __construct(
+        private ?PatientIdentity $identity,
+    ) {
+    }
+
+    public function healthcareIdentity(): ?PatientIdentity
+    {
+        return $this->identity;
+    }
+
+    public function replaceHealthcareIdentity(PatientIdentity $identity): void
+    {
+        $this->identity = $identity;
+    }
+}
 
 $traits = new StrictIdentityTraits(
     birthFamilyName: 'LOVELACE',
@@ -94,41 +113,10 @@ $traits = new StrictIdentityTraits(
     birthPlace: new CogCode('99100'), // COG birthplace code (here: United Kingdom)
 );
 
-// The full given-name list may be unknown while the first name is known:
-$minimalTraits = new StrictIdentityTraits(
-    birthFamilyName: 'DUPONT',
-    firstBirthGivenName: 'Jean',
-    birthGivenNames: null,
-    birthDate: new Date('1970-01-01'),
-    gender: AdministrativeGender::MALE,
-    birthPlace: new CogCode('75056'),
-);
+$patient = new Patient(PatientIdentity::provisional($traits));
 
-$identity = PatientIdentity::provisional($traits);
-
-echo $identity->traits->birthFamilyName;       // "LOVELACE"
-echo $identity->traits->firstBirthGivenName;   // "Ada"
-echo $identity->traits->gender->value;         // "F"
-echo $identity->status->value;                 // "provisional"
-```
-
-#### Qualified INS identity
-
-```php
-use Healthcare\Identity\ValueObject\InsAssigningAuthority;
-use Healthcare\Identity\ValueObject\InsIdentifier;
-use Healthcare\Identity\ValueObject\InsMatricule;
-use Healthcare\Identity\ValueObject\PatientIdentity;
-
-$ins = new InsIdentifier(
-    new InsMatricule('185057512345673'), // fake matricule only
-    InsAssigningAuthority::nir(),
-);
-
-$identity = PatientIdentity::qualified($traits, $ins);
-
-echo (string) $identity->insIdentifier->matricule;       // "185057512345673"
-echo (string) $identity->insIdentifier->authority->oid;  // "1.2.250.1.213.1.4.8"
+echo $patient->healthcareIdentity()->traits->birthFamilyName; // "LOVELACE"
+echo $patient->healthcareIdentity()->status->value;           // "provisional"
 ```
 
 The four RNIV statuses map to factories:
@@ -142,31 +130,54 @@ PatientIdentity::qualified($traits, $ins);          // INS required
 
 Incoherent states (e.g. `QUALIFIED` without an INS) cannot be built: `PatientIdentity` has no public constructor, only the four named factories.
 
-### 2. Representing a practitioner role with coded profession/specialty
+### 2. Representing a practitioner identity
+
+`PractitionerIdentity` carries the stable professional identity (name, optional RPPS, optional ADELI). Organization membership, roles and savoir-faire live in `PractitionerRole`:
 
 ```php
-use Healthcare\Care\Entity\Organization;
-use Healthcare\Care\Entity\Practitioner;
-use Healthcare\Care\Entity\PractitionerRole;
+use Healthcare\Care\ValueObject\PractitionerIdentity;
+use Healthcare\Care\ValueObject\PractitionerRole;
 use Healthcare\Care\ValueObject\ProfessionCode;
-use Healthcare\Care\ValueObject\SpecialtyCode;
+use Healthcare\Care\ValueObject\SavoirFaireCode;
 use Healthcare\Identity\ValueObject\HumanName;
+use Healthcare\Kernel\ValueObject\Rpps;
 
-$practitioner = new Practitioner('p-1', new HumanName('Lovelace', ['Ada']));
-$organization = new Organization('o-1', 'Example Clinic');
-
-$role = new PractitionerRole(
-    'role-1',
-    $practitioner,
-    $organization,
-    profession: ProfessionCode::fromTreG15('10', 'Médecin'),
-    specialty: SpecialtyCode::fromTreR38('SM41', 'Pneumologie'),
+$identity = new PractitionerIdentity(
+    new HumanName('Curie', ['Marie']),
+    rpps: new Rpps('12345678901'),
 );
 
-echo $role->profession()->concept->code; // "10" — TRE_G15
+$role = new PractitionerRole(
+    profession: ProfessionCode::fromTreG15('10', 'Médecin'),
+    savoirFaire: [
+        SavoirFaireCode::fromTreR38('SM41', 'Pneumologie'),  // ordinal specialty
+        SavoirFaireCode::fromTreR40('CEX01'),                // exclusive competence
+    ],
+);
+
+echo $role->profession->coding->code; // "10" — TRE_G15
+echo $role->savoirFaire[0]->coding->code; // "SM41" — TRE_R38
 ```
 
-### 3. Creating a medication with CIS and multiple CIP presentations
+### 3. Representing an organization identity
+
+```php
+use Healthcare\Care\ValueObject\OrganizationIdentity;
+use Healthcare\Kernel\ValueObject\Siren;
+use Healthcare\Kernel\ValueObject\Siret;
+
+$identity = new OrganizationIdentity(
+    name: 'Example Hospital',
+    siren: new Siren('732829320'),
+    siret: new Siret('73282932000074'),
+);
+
+echo $identity->name; // "Example Hospital"
+```
+
+When both SIREN and SIRET are supplied, they must refer to the same legal entity (the SIREN is derived from the SIRET and compared).
+
+### 4. Creating a medication with CIS and multiple CIP presentations
 
 ```php
 use Healthcare\Kernel\ValueObject\Cip13;
@@ -187,42 +198,63 @@ echo (string) $medication->cis();      // "60000000"
 echo count($medication->presentations()); // 1
 ```
 
-### 4. Representing a lab observation with quantity/reference range
+### 5. Referring to patient and practitioner records from a clinical resource
+
+Generic clinical resources refer to consumer records through **typed references**, not through package entities:
 
 ```php
+use Healthcare\Care\ValueObject\OrganizationReference;
+use Healthcare\Care\ValueObject\PatientReference;
+use Healthcare\Care\ValueObject\PractitionerReference;
 use Healthcare\Clinical\Entity\Observation;
-use Healthcare\Clinical\ValueObject\ReferenceRange;
+use Healthcare\Clinical\Entity\ServiceRequest;
 use Healthcare\Clinical\ValueObject\ObservationCode;
 use Healthcare\Clinical\ValueObject\ObservationStatus;
 use Healthcare\Clinical\ValueObject\QuantityValue;
+use Healthcare\Clinical\ValueObject\ServiceRequestStatus;
+use Healthcare\Kernel\ValueObject\CodeableConcept;
+use Healthcare\Kernel\ValueObject\Coding;
+use Healthcare\Kernel\ValueObject\CodeSystem;
 use Healthcare\Kernel\ValueObject\Quantity;
 use Healthcare\Kernel\ValueObject\Unit;
 
+$patientRef = new PatientReference(
+    id: 'patient-1',
+    identity: $patient->healthcareIdentity(), // optional snapshot
+);
+
+$practitionerRef = new PractitionerReference(id: 'practitioner-1');
+
+$request = new ServiceRequest(
+    'sr-1',
+    $patientRef,
+    new CodeableConcept([new Coding(CodeSystem::loinc(), '58410-2', 'CBC panel')]),
+    ServiceRequestStatus::ACTIVE,
+    requester: $practitionerRef,
+);
+
 $observation = new Observation(
     'obs-1',
-    $patient,
-    ObservationCode::fromLoinc('718-7', 'Hemoglobin'),
+    $patientRef,
+    ObservationCode::fromLoinc('718-7', 'Hemoglobin [Mass/volume] in Blood'),
     ObservationStatus::FINAL,
     new QuantityValue(new Quantity('140', Unit::fromUcum('g/L'))),
 );
-$observation->addReferenceRange(new ReferenceRange(
-    low: new Quantity('120', Unit::fromUcum('g/L')),
-    high: new Quantity('160', Unit::fromUcum('g/L')),
-));
 
 echo $observation->value()->quantity; // "140 g/L"
 ```
 
-### 5. Representing an imaging request/report with a DICOM Study Instance UID
+Reference equality is based on the record `id` only: the same referenced record remains the same reference even if its name or identity snapshot is updated later.
+
+### 6. Representing an imaging request/report with a DICOM Study Instance UID
 
 ```php
 use Healthcare\Imaging\Entity\ImagingStudy;
 use Healthcare\Imaging\ValueObject\StudyInstanceUid;
-use Healthcare\Clinical\Entity\ServiceRequest;
 
 $study = new ImagingStudy(
     'study-1',
-    $patient,
+    $patientRef,
     StudyInstanceUid::tryFrom('2.25.12345678901234567890123456789012345678901'),
     request: $request,
 );
@@ -232,11 +264,40 @@ echo (string) $study->studyInstanceUid(); // the validated DICOM UID
 
 ## Design principles
 
+- **Composition over application-aggregate inheritance** — `healthcare-domain` defines semantic building blocks; consumers define their aggregates and persistence; clinical package resources refer to consumer records through typed references.
 - **Typed identifiers** — never pass raw strings around; every identifier is a dedicated immutable value object.
 - **Fail fast or fail soft** — constructors throw (`InvalidValueObject`, `InvalidIdentifier`, `InvalidPeriod`, `InvalidDomainState`); `isValidValue()` and `tryFrom()` validate external data without exceptions.
 - **Value semantics** — value objects are immutable, normalized on construction, and comparable with `equals()`.
 - **Coded concepts over enums** — externally governed terminologies are `Coding` instances (FHIR Coding semantics), and `CodeableConcept` supports several codings plus a text, so historical and future codes stay representable.
 - **Explicit collections** — entity collections reject semantically duplicate values.
+
+## Migrating from 0.1.x to 0.2.0
+
+`0.2.0` is a breaking pre-1.0 evolution. The application-shaped `Care\Entity\*` aggregates have been removed: the package no longer ships `Patient`, `Practitioner`, `Organization` or a mutable `PractitionerRole` entity.
+
+| 0.1.x | 0.2.x |
+| --- | --- |
+| `Care\Entity\Patient` | consumer `Patient` aggregate + `PatientIdentity`, `PatientReference` when referenced |
+| `Care\Entity\Practitioner` | consumer `Practitioner` aggregate + `PractitionerIdentity`, `PractitionerRole[]`, `PractitionerReference` when referenced |
+| `Care\Entity\Organization` | consumer `Organization` aggregate + `OrganizationIdentity`, `OrganizationReference` when referenced |
+| `Care\Entity\PractitionerRole` | `Care\ValueObject\PractitionerRole` (immutable) |
+| `SpecialtyCode` | `SavoirFaireCode` (TRE_R38 / TRE_R40) |
+
+Consumers should not map their whole aggregate to a second package aggregate anymore. Preferred consumer style:
+
+```php
+$identity = $patient->healthcareIdentity();
+$reference = new PatientReference((string) $patient->getUuid(), $identity);
+```
+
+and when mutating shared identity semantics:
+
+```php
+$identity = PatientIdentity::qualified($traits, $ins);
+$patient->replaceHealthcareIdentity($identity);
+```
+
+The package factory/value object is the source of truth for the shared invariant; the consumer only decides how to persist it.
 
 ## Project layout
 
@@ -245,7 +306,7 @@ src/
   Kernel/       # identifiers, coded concepts, primitives, errors
   Geographic/   # Address, CountryCode, CogCode
   Identity/     # PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, HumanName, AdministrativeGender, IdentityStatus
-  Care/         # Patient, Practitioner, PractitionerRole, Organization
+  Care/         # PractitionerIdentity, OrganizationIdentity, PractitionerRole, Patient/Practitioner/OrganizationReference, ContactPoint, profession/savoir-faire/category codes
   Clinical/     # Encounter, ServiceRequest, Observation, DiagnosticReport, Specimen, ClinicalDocument
   Medication/   # Medication, MedicationPresentation, MedicationComponent, ActiveSubstance
   Laboratory/   # AccessionNumber
