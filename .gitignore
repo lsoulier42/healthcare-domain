@@ -1,6 +1,7 @@
 # dependencies (composer)
 /vendor/
 /.vendor-local/
+/composer.lock
 
 # local tooling state
 /.freebuff/
