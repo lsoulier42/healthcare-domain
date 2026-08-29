@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Healthcare\Clinical\Entity;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Patient;
+use Healthcare\Care\ValueObject\PatientReference;
 use Healthcare\Clinical\ValueObject\SpecimenTypeCode;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\CodeableConcept;
@@ -22,7 +22,7 @@ final class Specimen
 
     public function __construct(
         private readonly string $id,
-        private ?Patient $patient = null,
+        private ?PatientReference $patient = null,
         private ?SpecimenTypeCode $type = null,
         private ?DateTimeImmutable $collectedAt = null,
         private ?DateTimeImmutable $receivedAt = null,
@@ -39,7 +39,7 @@ final class Specimen
         return $this->id;
     }
 
-    public function patient(): ?Patient
+    public function patient(): ?PatientReference
     {
         return $this->patient;
     }
@@ -69,7 +69,7 @@ final class Specimen
         return $this->bodySite;
     }
 
-    public function changePatient(?Patient $patient): void
+    public function changePatient(?PatientReference $patient): void
     {
         $this->patient = $patient;
     }

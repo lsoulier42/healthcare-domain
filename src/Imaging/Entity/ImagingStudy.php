@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Healthcare\Imaging\Entity;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Organization;
-use Healthcare\Care\Entity\Patient;
+use Healthcare\Care\ValueObject\OrganizationReference;
+use Healthcare\Care\ValueObject\PatientReference;
 use Healthcare\Clinical\Entity\Encounter;
 use Healthcare\Clinical\Entity\ServiceRequest;
 use Healthcare\Imaging\ValueObject\AccessionNumber;
@@ -25,13 +25,13 @@ final class ImagingStudy
 
     public function __construct(
         private readonly string $id,
-        private readonly Patient $patient,
+        private readonly PatientReference $patient,
         private StudyInstanceUid $studyInstanceUid,
         private ?ServiceRequest $request = null,
         private ?Encounter $encounter = null,
         private ?AccessionNumber $accessionNumber = null,
         private ?DateTimeImmutable $startedAt = null,
-        private ?Organization $organization = null,
+        private ?OrganizationReference $organization = null,
     ) {
         if (trim($id) === '') {
             throw new InvalidValueObject('An imaging study requires an identifier.');
@@ -43,7 +43,7 @@ final class ImagingStudy
         return $this->id;
     }
 
-    public function patient(): Patient
+    public function patient(): PatientReference
     {
         return $this->patient;
     }
@@ -73,7 +73,7 @@ final class ImagingStudy
         return $this->startedAt;
     }
 
-    public function organization(): ?Organization
+    public function organization(): ?OrganizationReference
     {
         return $this->organization;
     }
@@ -103,7 +103,7 @@ final class ImagingStudy
         $this->startedAt = $startedAt;
     }
 
-    public function changeOrganization(?Organization $organization): void
+    public function changeOrganization(?OrganizationReference $organization): void
     {
         $this->organization = $organization;
     }

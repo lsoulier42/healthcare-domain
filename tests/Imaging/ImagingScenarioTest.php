@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Healthcare\Tests\Imaging;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Organization;
-use Healthcare\Care\Entity\Patient;
+use Healthcare\Care\ValueObject\OrganizationIdentity;
+use Healthcare\Care\ValueObject\OrganizationReference;
+use Healthcare\Care\ValueObject\PatientReference;
 use Healthcare\Clinical\Entity\ServiceRequest;
 use Healthcare\Clinical\ValueObject\ServiceRequestStatus;
 use Healthcare\Geographic\ValueObject\CogCode;
@@ -75,8 +76,14 @@ final class ImagingScenarioTest extends TestCase
             gender: AdministrativeGender::FEMALE,
             birthPlace: new CogCode('99100'),
         );
-        $patient = new Patient('patient-1', PatientIdentity::provisional($traits));
-        $organization = new Organization('o-1', 'Centre Imagerie');
+        $patient = new PatientReference(
+            id: 'patient-1',
+            identity: PatientIdentity::provisional($traits),
+        );
+        $organization = new OrganizationReference(
+            id: 'organization-1',
+            identity: new OrganizationIdentity('Centre Imagerie'),
+        );
 
         $request = new ServiceRequest(
             'sr-1',

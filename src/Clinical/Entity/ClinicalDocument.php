@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Healthcare\Clinical\Entity;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Patient;
-use Healthcare\Care\Entity\Practitioner;
+use Healthcare\Care\ValueObject\PatientReference;
+use Healthcare\Care\ValueObject\PractitionerReference;
 use Healthcare\Clinical\ValueObject\DocumentContent;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\CodeableConcept;
@@ -19,9 +19,9 @@ final class ClinicalDocument
 {
     public function __construct(
         private readonly string $id,
-        private readonly Patient $patient,
+        private readonly PatientReference $patient,
         private CodeableConcept $type,
-        private readonly Practitioner $author,
+        private readonly PractitionerReference $author,
         private readonly DateTimeImmutable $createdAt,
         private ?DocumentContent $content = null,
         private ?string $title = null,
@@ -37,7 +37,7 @@ final class ClinicalDocument
         return $this->id;
     }
 
-    public function patient(): Patient
+    public function patient(): PatientReference
     {
         return $this->patient;
     }
@@ -52,7 +52,7 @@ final class ClinicalDocument
         return $this->title;
     }
 
-    public function author(): Practitioner
+    public function author(): PractitionerReference
     {
         return $this->author;
     }

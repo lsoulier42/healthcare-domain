@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Healthcare\Tests\Clinical;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Organization;
-use Healthcare\Care\Entity\Patient;
-use Healthcare\Care\Entity\Practitioner;
+use Healthcare\Care\ValueObject\OrganizationIdentity;
+use Healthcare\Care\ValueObject\OrganizationReference;
+use Healthcare\Care\ValueObject\PatientReference;
+use Healthcare\Care\ValueObject\PractitionerIdentity;
+use Healthcare\Care\ValueObject\PractitionerReference;
 use Healthcare\Clinical\Entity\ClinicalDocument;
 use Healthcare\Clinical\Entity\DiagnosticReport;
 use Healthcare\Clinical\Entity\Encounter;
@@ -45,7 +47,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ClinicalScenarioTest extends TestCase
 {
-    private function patient(): Patient
+    private function patient(): PatientReference
     {
         $traits = new StrictIdentityTraits(
             birthFamilyName: 'LOVELACE',
@@ -56,19 +58,28 @@ final class ClinicalScenarioTest extends TestCase
             birthPlace: new CogCode('99100'),
         );
 
-        return new Patient('patient-1', PatientIdentity::provisional($traits));
+        return new PatientReference(
+            id: 'patient-1',
+            identity: PatientIdentity::provisional($traits),
+        );
     }
 
-    private function requester(): Practitioner
+    private function requester(): PractitionerReference
     {
-        return new Practitioner('p-1', new HumanName('Curie', ['Marie']));
+        return new PractitionerReference(
+            id: 'practitioner-1',
+            identity: new PractitionerIdentity(new HumanName('Curie', ['Marie'])),
+        );
     }
 
     public function testLaboratoryStyleScenarioComposes(): void
     {
         $patient = $this->patient();
         $requester = $this->requester();
-        $lab = new Organization('o-1', 'Laboratoire Exemple');
+        $lab = new OrganizationReference(
+            id: 'organization-1',
+            identity: new OrganizationIdentity('Laboratoire Exemple'),
+        );
 
         $encounter = new Encounter(
             'enc-1',
@@ -266,11 +277,14 @@ final class ClinicalScenarioTest extends TestCase
             InsAssigningAuthority::nir(),
         );
 
-        $patient = new Patient('patient-2', PatientIdentity::qualified($traits, $ins));
+        $identity = PatientIdentity::qualified($traits, $ins);
+        $patient = new PatientReference('patient-2', $identity);
 
-        self::assertSame('qualified', $patient->identity()->status->value);
-        self::assertSame('281102A12500964', (string) $patient->identity()->insIdentifier?->matricule);
-        self::assertSame('1.2.250.1.213.1.4.8', (string) $patient->identity()->insIdentifier?->authority->oid);
-        self::assertSame(['Alan', 'Mathison'], $patient->identity()->traits->birthGivenNames);
+        self::assertNotNull($patient->identity);
+        self::assertNotNull($patient->identity->insIdentifier);
+        self::assertSame('qualified', $patient->identity->status->value);
+        self::assertSame('281102A12500964', (string) $patient->identity->insIdentifier->matricule);
+        self::assertSame('1.2.250.1.213.1.4.8', (string) $patient->identity->insIdentifier->authority->oid);
+        self::assertSame(['Alan', 'Mathison'], $patient->identity->traits->birthGivenNames);
     }
 }

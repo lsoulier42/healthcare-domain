@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Healthcare\Clinical\Entity;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Organization;
-use Healthcare\Care\Entity\Patient;
-use Healthcare\Care\Entity\Practitioner;
+use Healthcare\Care\ValueObject\OrganizationReference;
+use Healthcare\Care\ValueObject\PatientReference;
+use Healthcare\Care\ValueObject\PractitionerReference;
 use Healthcare\Clinical\ValueObject\DiagnosticReportStatus;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\CodeableConcept;
@@ -26,14 +26,14 @@ final class DiagnosticReport
 
     public function __construct(
         private readonly string $id,
-        private readonly Patient $patient,
+        private readonly PatientReference $patient,
         private CodeableConcept $code,
         private DiagnosticReportStatus $status,
         private ?ServiceRequest $request = null,
         private ?Encounter $encounter = null,
         private ?DateTimeImmutable $issuedAt = null,
-        private ?Practitioner $performer = null,
-        private ?Organization $performerOrganization = null,
+        private ?PractitionerReference $performer = null,
+        private ?OrganizationReference $performerOrganization = null,
         private ?string $conclusion = null,
         private ?ClinicalDocument $document = null,
     ) {
@@ -47,7 +47,7 @@ final class DiagnosticReport
         return $this->id;
     }
 
-    public function patient(): Patient
+    public function patient(): PatientReference
     {
         return $this->patient;
     }
@@ -77,12 +77,12 @@ final class DiagnosticReport
         return $this->issuedAt;
     }
 
-    public function performer(): ?Practitioner
+    public function performer(): ?PractitionerReference
     {
         return $this->performer;
     }
 
-    public function performerOrganization(): ?Organization
+    public function performerOrganization(): ?OrganizationReference
     {
         return $this->performerOrganization;
     }
@@ -122,12 +122,12 @@ final class DiagnosticReport
         $this->issuedAt = $issuedAt;
     }
 
-    public function changePerformer(?Practitioner $performer): void
+    public function changePerformer(?PractitionerReference $performer): void
     {
         $this->performer = $performer;
     }
 
-    public function changePerformerOrganization(?Organization $performerOrganization): void
+    public function changePerformerOrganization(?OrganizationReference $performerOrganization): void
     {
         $this->performerOrganization = $performerOrganization;
     }

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Healthcare\Clinical\Entity;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Organization;
-use Healthcare\Care\Entity\Patient;
-use Healthcare\Care\Entity\Practitioner;
+use Healthcare\Care\ValueObject\OrganizationReference;
+use Healthcare\Care\ValueObject\PatientReference;
+use Healthcare\Care\ValueObject\PractitionerReference;
 use Healthcare\Clinical\ValueObject\ServiceRequestStatus;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\CodeableConcept;
@@ -20,11 +20,11 @@ final class ServiceRequest
 {
     public function __construct(
         private readonly string $id,
-        private readonly Patient $patient,
+        private readonly PatientReference $patient,
         private CodeableConcept $code,
         private ServiceRequestStatus $status,
-        private ?Practitioner $requester = null,
-        private ?Organization $performerOrganization = null,
+        private ?PractitionerReference $requester = null,
+        private ?OrganizationReference $performerOrganization = null,
         private ?Encounter $encounter = null,
         private ?DateTimeImmutable $authoredAt = null,
         private ?string $clinicalInformation = null,
@@ -39,7 +39,7 @@ final class ServiceRequest
         return $this->id;
     }
 
-    public function patient(): Patient
+    public function patient(): PatientReference
     {
         return $this->patient;
     }
@@ -54,12 +54,12 @@ final class ServiceRequest
         return $this->status;
     }
 
-    public function requester(): ?Practitioner
+    public function requester(): ?PractitionerReference
     {
         return $this->requester;
     }
 
-    public function performerOrganization(): ?Organization
+    public function performerOrganization(): ?OrganizationReference
     {
         return $this->performerOrganization;
     }
@@ -89,12 +89,12 @@ final class ServiceRequest
         $this->status = $status;
     }
 
-    public function changeRequester(?Practitioner $requester): void
+    public function changeRequester(?PractitionerReference $requester): void
     {
         $this->requester = $requester;
     }
 
-    public function changePerformerOrganization(?Organization $performerOrganization): void
+    public function changePerformerOrganization(?OrganizationReference $performerOrganization): void
     {
         $this->performerOrganization = $performerOrganization;
     }

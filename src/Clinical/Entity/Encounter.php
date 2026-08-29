@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Healthcare\Clinical\Entity;
 
-use Healthcare\Care\Entity\Organization;
-use Healthcare\Care\Entity\Practitioner;
-use Healthcare\Care\Entity\Patient;
+use Healthcare\Care\ValueObject\OrganizationReference;
+use Healthcare\Care\ValueObject\PatientReference;
+use Healthcare\Care\ValueObject\PractitionerReference;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\CodeableConcept;
 use Healthcare\Kernel\ValueObject\Period;
@@ -16,15 +16,15 @@ use Healthcare\Kernel\ValueObject\Period;
  */
 final class Encounter
 {
-    /** @var list<Practitioner> */
+    /** @var list<PractitionerReference> */
     private array $participatingPractitioners = [];
 
     public function __construct(
         private readonly string $id,
-        private readonly Patient $patient,
+        private readonly PatientReference $patient,
         private Period $period,
         private ?CodeableConcept $type = null,
-        private ?Organization $organization = null,
+        private ?OrganizationReference $organization = null,
     ) {
         if (trim($id) === '') {
             throw new InvalidValueObject('An encounter requires an identifier.');
@@ -36,7 +36,7 @@ final class Encounter
         return $this->id;
     }
 
-    public function patient(): Patient
+    public function patient(): PatientReference
     {
         return $this->patient;
     }
@@ -51,7 +51,7 @@ final class Encounter
         return $this->type;
     }
 
-    public function organization(): ?Organization
+    public function organization(): ?OrganizationReference
     {
         return $this->organization;
     }
@@ -66,21 +66,21 @@ final class Encounter
         $this->type = $type;
     }
 
-    public function changeOrganization(?Organization $organization): void
+    public function changeOrganization(?OrganizationReference $organization): void
     {
         $this->organization = $organization;
     }
 
-    /** @return list<Practitioner> */
+    /** @return list<PractitionerReference> */
     public function participatingPractitioners(): array
     {
         return $this->participatingPractitioners;
     }
 
-    public function addParticipatingPractitioner(Practitioner $practitioner): void
+    public function addParticipatingPractitioner(PractitionerReference $practitioner): void
     {
         foreach ($this->participatingPractitioners as $existing) {
-            if ($existing->id() === $practitioner->id()) {
+            if ($existing->id === $practitioner->id) {
                 return;
             }
         }
@@ -88,11 +88,11 @@ final class Encounter
         $this->participatingPractitioners[] = $practitioner;
     }
 
-    public function removeParticipatingPractitioner(Practitioner $practitioner): void
+    public function removeParticipatingPractitioner(PractitionerReference $practitioner): void
     {
         $this->participatingPractitioners = array_values(array_filter(
             $this->participatingPractitioners,
-            static fn (Practitioner $item): bool => $item->id() !== $practitioner->id(),
+            static fn (PractitionerReference $item): bool => $item->id !== $practitioner->id,
         ));
     }
 }

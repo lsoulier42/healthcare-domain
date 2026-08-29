@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Healthcare\Clinical\Entity;
 
 use DateTimeImmutable;
-use Healthcare\Care\Entity\Patient;
+use Healthcare\Care\ValueObject\PatientReference;
 use Healthcare\Clinical\ValueObject\ObservationStatus;
 use Healthcare\Clinical\ValueObject\ObservationValue;
 use Healthcare\Clinical\ValueObject\ObservationCode;
@@ -29,7 +29,7 @@ final class Observation
 
     public function __construct(
         private readonly string $id,
-        private readonly Patient $patient,
+        private readonly PatientReference $patient,
         private ObservationCode $code,
         private ObservationStatus $status,
         private ?ObservationValue $value = null,
@@ -47,7 +47,7 @@ final class Observation
         return $this->id;
     }
 
-    public function patient(): Patient
+    public function patient(): PatientReference
     {
         return $this->patient;
     }
