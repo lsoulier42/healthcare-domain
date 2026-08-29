@@ -12,4 +12,13 @@ final readonly class Siret extends AbstractStringValueObject
             && Checksum::siren(substr($value, 0, 9))
             && Checksum::luhn($value);
     }
+
+    /**
+     * The SIREN of the legal entity owning this establishment: the first
+     * nine digits, already validated by the SIRET checksum.
+     */
+    public function siren(): Siren
+    {
+        return new Siren(substr($this->value, 0, 9));
+    }
 }

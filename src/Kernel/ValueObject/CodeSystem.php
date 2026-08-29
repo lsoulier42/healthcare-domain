@@ -46,6 +46,11 @@ final readonly class CodeSystem
         return new self('https://mos.esante.gouv.fr/NOS/TRE_R38-SpecialiteOrdinale/FHIR/TRE-R38-SpecialiteOrdinale');
     }
 
+    public static function ansTreR40(): self
+    {
+        return new self('https://mos.esante.gouv.fr/NOS/TRE_R40-CompetenceExclusive/FHIR/TRE-R40-CompetenceExclusive');
+    }
+
     public static function loinc(): self
     {
         return new self('http://loinc.org');
