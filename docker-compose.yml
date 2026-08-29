@@ -1,0 +1,14 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - .:/app
+      - composer_vendor:/app/vendor
+    entrypoint: ["composer"]
+    command: ["test"]
+
+volumes:
+  composer_vendor:

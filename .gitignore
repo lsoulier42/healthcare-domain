@@ -1,0 +1,16 @@
+# dependencies (composer)
+/vendor/
+
+# local tooling state
+/.freebuff/
+.phpunit.result.cache
+
+# internal working notes (kept locally, not published)
+/docs/
+
+# jetbrains
+/.idea/
+
+# editors
+*.swp
+.DS_Store

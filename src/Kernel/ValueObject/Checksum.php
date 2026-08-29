@@ -1,0 +1,55 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Healthcare\Kernel\ValueObject;
+
+final class Checksum
+{
+    private function __construct()
+    {
+    }
+
+    public static function luhn(string $digits): bool
+    {
+        if ($digits === '' || preg_match('/^\d+$/', $digits) !== 1) {
+            return false;
+        }
+
+        $sum = 0;
+        $length = strlen($digits);
+        for ($index = 0; $index < $length; $index++) {
+            $digit = (int) $digits[$length - 1 - $index];
+            if ($index % 2 === 1) {
+                $digit *= 2;
+                if ($digit > 9) {
+                    $digit -= 9;
+                }
+            }
+            $sum += $digit;
+        }
+
+        return $sum % 10 === 0;
+    }
+
+    public static function siren(string $siren): bool
+    {
+        if (preg_match('/^\d{9}$/', $siren) !== 1) {
+            return false;
+        }
+
+        $sum = 0;
+        for ($index = 0; $index < 9; $index++) {
+            $digit = (int) $siren[$index];
+            if ($index % 2 === 1) {
+                $digit *= 2;
+                if ($digit > 9) {
+                    $digit -= 9;
+                }
+            }
+            $sum += $digit;
+        }
+
+        return $sum % 10 === 0;
+    }
+}
