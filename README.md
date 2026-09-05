@@ -49,7 +49,8 @@ A consumer should **never have to redefine** what an INS patient identity, a pra
 | `Oid` | ISO object identifier (dotted-decimal arcs) | Syntax + X.660 root arcs |
 | `Date` | Calendar date (YYYY-MM-DD, no time/zone) | Real calendar date |
 | `Cis` | Medicinal product ID (8 digits) | Format |
-| `Cip7` / `Cip13` | Drug presentation codes | Luhn checksum |
+| `Cip7` | Legacy drug presentation code | Luhn checksum (legacy implementation; rule pending verification) |
+| `Cip13` | Drug presentation code | GS1 modulo-10 checksum (alternating weights 1/3) |
 | `Ucd` | Dispensing-unit code (7 digits) | Format |
 | `Atc` | ATC classification code | Format |
 | `CountryCode` | Country (ISO 3166-1 alpha-2) | Format |
@@ -190,7 +191,7 @@ $medication = new Medication('med-1', 'Example product', cis: new Cis('60000000'
 $presentation = new MedicationPresentation(
     'pres-1',
     $medication,
-    cip13: new Cip13('3400931234560'), // fake CIP
+    cip13: new Cip13('3400931234562'), // fake CIP
     packagingDescription: 'Box of 16 tablets',
 );
 

@@ -71,7 +71,7 @@ final class IdentifierTest extends TestCase
 
     public function testCipCodesCheckTheirModuloTenDigit(): void
     {
-        self::assertSame('3400931234560', (string) new Cip13('3400931234560'));
+        self::assertSame('3400931234562', (string) new Cip13('3400931234562'));
         self::assertSame('3400934', (string) new Cip7('3400934'));
 
         $this->expectException(InvalidValueObject::class);
@@ -155,7 +155,7 @@ final class IdentifierTest extends TestCase
         self::assertInstanceOf(Siren::class, Siren::tryFrom('732829320'));
         self::assertInstanceOf(Siret::class, Siret::tryFrom('73282932000074'));
         self::assertInstanceOf(Cip7::class, Cip7::tryFrom('3400934'));
-        self::assertInstanceOf(Cip13::class, Cip13::tryFrom('3400931234560'));
+        self::assertInstanceOf(Cip13::class, Cip13::tryFrom('3400931234562'));
         self::assertInstanceOf(Ucd::class, Ucd::tryFrom('1234567'));
         self::assertInstanceOf(Atc::class, Atc::tryFrom('A01BC02'));
         self::assertInstanceOf(Nir::class, Nir::tryFrom('1850575123456'));
