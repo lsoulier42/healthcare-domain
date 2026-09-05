@@ -7,10 +7,14 @@ namespace Healthcare\Tests\Identity;
 use Healthcare\Geographic\ValueObject\CogCode;
 use Healthcare\Identity\Service\InsiDatamatrixPayload;
 use Healthcare\Identity\ValueObject\AdministrativeGender;
+use Healthcare\Identity\ValueObject\InsAssigningAuthority;
+use Healthcare\Identity\ValueObject\InsIdentifier;
 use Healthcare\Identity\ValueObject\InsMatricule;
+use Healthcare\Identity\ValueObject\PatientIdentity;
+use Healthcare\Identity\ValueObject\StrictIdentityTraits;
+use Healthcare\Kernel\Exception\InvalidDomainState;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\Date;
-use Healthcare\Kernel\ValueObject\Oid;
 use PHPUnit\Framework\TestCase;
 
 final class InsiDatamatrixPayloadTest extends TestCase
@@ -18,118 +22,141 @@ final class InsiDatamatrixPayloadTest extends TestCase
     private const HEADER = 'IS010000000000000000000000';
     private const GS = "\x1D";
 
-    public function testBuildsMinimalPayload(): void
-    {
-        $payload = InsiDatamatrixPayload::build(
-            new InsMatricule('277010115400329'),
-            new Oid('1.2.250.1.213.1.4.8'),
-            'SARAH-LOU ANNA',
-            'GARCIA-HAMMADI',
-            AdministrativeGender::FEMALE,
-            new Date('1977-01-21'),
+    /**
+     * @param ?list<string> $givenNames
+     */
+    private function identity(
+        ?string $familyName = null,
+        ?array $givenNames = null,
+        AdministrativeGender $gender = AdministrativeGender::FEMALE,
+        ?string $oid = null,
+    ): PatientIdentity {
+        $familyName ??= 'LOVELACE';
+        $givenNames ??= ['Ada'];
+
+        $traits = new StrictIdentityTraits(
+            birthFamilyName: $familyName,
+            firstBirthGivenName: $givenNames[0],
+            birthGivenNames: $givenNames,
+            birthDate: new Date('1815-12-10'),
+            gender: $gender,
+            birthPlace: new CogCode('99100'),
         );
 
+        $insIdentifier = new InsIdentifier(
+            new InsMatricule('185057512345673'),
+            new InsAssigningAuthority(new \Healthcare\Kernel\ValueObject\Oid($oid ?? '1.2.250.1.213.1.4.8')),
+        );
+
+        return PatientIdentity::qualified($traits, $insIdentifier);
+    }
+
+    public function testBuildsPayloadFromQualifiedIdentity(): void
+    {
+        $payload = InsiDatamatrixPayload::fromQualifiedIdentity($this->identity());
+
         $expected = self::HEADER
-            . 'S1' . '277010115400329'
-            . 'S2' . '1.2.250.1.213.1.4.8' . self::GS
-            . 'S3' . 'SARAH-LOU ANNA' . self::GS
-            . 'S4' . 'GARCIA-HAMMADI' . self::GS
-            . 'S5' . 'F'
-            . 'S6' . '21-01-1977';
+            . 'S1' . '185057512345673'                 // fixed 15: no GS
+            . 'S2' . '1.2.250.1.213.1.4.8' . self::GS  // 19 < 20: GS
+            . 'S3' . 'ADA' . self::GS                  // < 100: GS
+            . 'S4' . 'LOVELACE' . self::GS             // < 100: GS
+            . 'S5' . 'F'                               // fixed 1: no GS
+            . 'S6' . '10-12-1815'                      // fixed 10, JJ-MM-AAAA
+            . 'S7' . '99100';                          // fixed 5, last
 
         self::assertSame($expected, $payload);
     }
 
-    public function testBuildsPayloadWithBirthPlace(): void
+    public function testOidAtMaximumLengthCarriesNoSeparator(): void
     {
-        $payload = InsiDatamatrixPayload::build(
-            new InsMatricule('277010115400329'),
-            new Oid('1.2.250.1.213.1.4.8'),
-            'SARAH-LOU ANNA',
-            'GARCIA-HAMMADI',
-            AdministrativeGender::FEMALE,
-            new Date('1977-01-21'),
-            new CogCode('01154'),
+        $payload = InsiDatamatrixPayload::fromQualifiedIdentity(
+            $this->identity(oid: '1.2.250.1.213.1.4.99'), // 20 characters
         );
 
-        self::assertStringEndsWith('S6' . '21-01-1977' . 'S7' . '01154', $payload);
-        // 26 (header) + S1(2+15) + S2(2+19+GS) + S3(2+14+GS)
-        // + S4(2+14+GS) + S5(2+1) + S6(2+10) + S7(2+5) = 121
-        self::assertSame(121, strlen($payload));
+        self::assertStringContainsString('S2' . '1.2.250.1.213.1.4.99' . 'S3', $payload);
     }
 
-    public function testNormalizesNamesToInsiProfile(): void
+    public function testOidTooLongIsRejected(): void
     {
-        $payload = InsiDatamatrixPayload::build(
-            new InsMatricule('277010115400329'),
-            new Oid('1.2.250.1.213.1.4.8'),
-            'Sarah-Lou Anna',
-            'García-Hämmadi',
-            AdministrativeGender::MALE,
-            new Date('1977-01-21'),
+        $this->expectException(InvalidValueObject::class);
+
+        InsiDatamatrixPayload::fromQualifiedIdentity(
+            $this->identity(oid: '1.2.250.1.213.1.4.100'), // 21 characters
+        );
+    }
+
+    public function testNameAtMaximumLengthCarriesNoSeparator(): void
+    {
+        $payload = InsiDatamatrixPayload::fromQualifiedIdentity(
+            $this->identity(familyName: str_repeat('A', 100)),
+        );
+
+        self::assertStringContainsString('S4' . str_repeat('A', 100) . 'S5', $payload);
+    }
+
+    public function testGivenNameListIsSpaceJoined(): void
+    {
+        $payload = InsiDatamatrixPayload::fromQualifiedIdentity(
+            $this->identity(givenNames: ['Sarah-Lou', 'Anna']),
+        );
+
+        self::assertStringContainsString('S3' . 'SARAH-LOU ANNA' . self::GS, $payload);
+    }
+
+    public function testNamesAreNormalized(): void
+    {
+        $payload = InsiDatamatrixPayload::fromQualifiedIdentity(
+            $this->identity(familyName: 'García-Hämmadi', givenNames: ['Sarah-Lou']),
         );
 
         self::assertStringContainsString('S4' . 'GARCIA-HAMMADI', $payload);
-        self::assertStringContainsString('S5' . 'M', $payload);
-    }
-
-    public function testBirthDateIsDayMonthYear(): void
-    {
-        $payload = InsiDatamatrixPayload::build(
-            new InsMatricule('277010115400329'),
-            new Oid('1.2.250.1.213.1.4.8'),
-            'SARAH',
-            'GARCIA',
-            AdministrativeGender::FEMALE,
-            new Date('2000-12-31'),
-        );
-
-        self::assertStringContainsString('S6' . '31-12-2000', $payload);
+        self::assertStringContainsString('S3' . 'SARAH-LOU', $payload);
     }
 
     public function testIndeterminateGenderIsRejected(): void
     {
         $this->expectException(InvalidValueObject::class);
 
-        InsiDatamatrixPayload::build(
-            new InsMatricule('277010115400329'),
-            new Oid('1.2.250.1.213.1.4.8'),
-            'SARAH',
-            'GARCIA',
-            AdministrativeGender::UNKNOWN,
-            new Date('2000-12-31'),
+        InsiDatamatrixPayload::fromQualifiedIdentity(
+            $this->identity(gender: AdministrativeGender::UNKNOWN),
         );
     }
 
-    public function testInvalidNameProfileIsRejected(): void
+    public function testNonQualifiedIdentityIsRejected(): void
+    {
+        $this->expectException(InvalidDomainState::class);
+
+        $traits = new StrictIdentityTraits(
+            birthFamilyName: 'LOVELACE',
+            firstBirthGivenName: 'Ada',
+            birthGivenNames: ['Ada'],
+            birthDate: new Date('1815-12-10'),
+            gender: AdministrativeGender::FEMALE,
+            birthPlace: new CogCode('99100'),
+        );
+        $insIdentifier = new InsIdentifier(
+            new InsMatricule('185057512345673'),
+            InsAssigningAuthority::nir(),
+        );
+
+        InsiDatamatrixPayload::fromQualifiedIdentity(PatientIdentity::recovered($traits, $insIdentifier));
+    }
+
+    public function testNameWithForbiddenCharacterIsRejected(): void
     {
         $this->expectException(InvalidValueObject::class);
 
-        InsiDatamatrixPayload::build(
-            new InsMatricule('277010115400329'),
-            new Oid('1.2.250.1.213.1.4.8'),
-            '-SARAH', // leading hyphen is not allowed after normalization
-            'GARCIA',
-            AdministrativeGender::FEMALE,
-            new Date('2000-12-31'),
+        InsiDatamatrixPayload::fromQualifiedIdentity(
+            $this->identity(familyName: 'LOVELACE2'),
         );
     }
 
-    public function testFixedLengthFieldsCarryNoSeparator(): void
+    public function testLengthIsDeterministic(): void
     {
-        $payload = InsiDatamatrixPayload::build(
-            new InsMatricule('277010115400329'),
-            new Oid('1.2.250.1.213.1.4.8'),
-            'SARAH',
-            'GARCIA',
-            AdministrativeGender::FEMALE,
-            new Date('2000-12-31'),
-        );
+        $payload = InsiDatamatrixPayload::fromQualifiedIdentity($this->identity());
 
-        // S1 (fixed), S5 (fixed) and S6 (fixed, last) are followed directly
-        // by the next identifier or terminate the message.
-        self::assertDoesNotMatchRegularExpression('/S1\d{15}\x1D/', $payload);
-        self::assertDoesNotMatchRegularExpression('/S5[FM]\x1D/', $payload);
-        self::assertStringEndsWith('S6' . '31-12-2000', $payload);
+        // 26 (header) + S1(2+15) + S2(2+19+GS) + S3(2+3+GS)
+        // + S4(2+8+GS) + S5(2+1) + S6(2+10) + S7(2+5) = 104
+        self::assertSame(104, strlen($payload));
     }
 }
