@@ -13,8 +13,9 @@ use Healthcare\Kernel\ValueObject\Identifier;
 
 /**
  * Minimal specimen model. Processing/aliquots/storage workflows belong
- * to the Laboratory module if needed. The patient is fixed at construction,
- * including when unknown, so shared observations and reports stay coherent.
+ * to the Laboratory module if needed. The domain fixes the patient at
+ * construction, including when unknown; later attribution or reassignment
+ * is not a supported workflow.
  */
 final class Specimen
 {

@@ -14,6 +14,7 @@ use Healthcare\Kernel\ValueObject\Ucd;
  * The UCD (smallest dispensing unit) attaches to the presentation, per
  * the official allocation rule (one UCD per CIP).
  * Construction registers this instance with its immutable medication owner.
+ * The domain does not support changing that owner, including to correct an error.
  * Removing it from that owner's collection does not transfer ownership.
  */
 final class MedicationPresentation
