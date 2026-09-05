@@ -28,12 +28,31 @@ A consumer should **never have to redefine** what an INS patient identity, a pra
 | --- | --- |
 | `Healthcare\Kernel` | CodeSystem / Coding / CodeableConcept, Period, Quantity, Unit (UCUM), Ratio, generic Identifier, Oid, Date, validated identifiers, exceptions |
 | `Healthcare\Geographic` | Address, CountryCode, CogCode |
-| `Healthcare\Identity` | PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, HumanName, AdministrativeGender, IdentityStatus (RNIV) |
+| `Healthcare\Identity` | PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, IdentityAttribute(s), HumanName, AdministrativeGender, IdentityStatus (RNIV) |
 | `Healthcare\Care` | PractitionerIdentity, OrganizationIdentity, PractitionerRole, PatientReference, PractitionerReference, OrganizationReference, ContactPoint, profession/savoir-faire/category codes |
 | `Healthcare\Clinical` | Encounter, ServiceRequest, Observation, ReferenceRange, DiagnosticReport, Specimen, ClinicalDocument |
 | `Healthcare\Medication` | Medication (CIS), MedicationPresentation (CIP/UCD), MedicationComponent, ActiveSubstance |
 | `Healthcare\Laboratory` | AccessionNumber |
 | `Healthcare\Imaging` | DicomUid + Study/Series/SOP instance UIDs, imaging AccessionNumber, ModalityCode, ImagingStudy |
+
+### INSi / SESAM-Vitale readiness
+
+The package ships with domain blocks for the French INSi téléservice and the INS
+datamatrix, built against the official references:
+
+- `Identity\Service\InsiTraitsNormalizer` — the INSi lexical profile
+  (uppercase, accent/ligature-free, allowed separators) required for
+  téléservice inputs (SEL-MP-043 v05.00.01) and datamatrix fields S3/S4
+  (ANS « Format datamatrix » v2.2);
+- `Identity\Service\InsiDatamatrixPayload` — the INS datamatrix message
+  builder (header + S1..S7 blocks, `<GS>` separator rule, JJ-MM-AAAA dates);
+- `Identity\ValueObject\IdentityAttribute(s)` — the RNIV identity attributes
+  (homonyme / douteux / fictif) and their invariants;
+- `Care\ValueObject\InsurancePractice` — the assertion PS payload
+  (identifiantFacturation, codeSpecialite, secteurActivite).
+
+See `INSi-adaptations.md` for the factual references and design
+rationale.
 
 ### Validated French identifiers
 
