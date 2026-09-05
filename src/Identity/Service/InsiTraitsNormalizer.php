@@ -4,32 +4,31 @@ declare(strict_types=1);
 
 namespace Healthcare\Identity\Service;
 
+use Healthcare\Kernel\Exception\InvalidValueObject;
+
 /**
- * Normalizes identity trait strings to the exact lexical profile required by
- * the French INSi téléservice and the INS datamatrix.
+ * Normalizes identity trait strings to one of the INSi lexical profiles
+ * (see {@see InsiTraitProfile}) at the INSi téléservice / INS datamatrix
+ * boundary only. Stored identity values remain untouched — the package keeps
+ * preserving the supplied semantic values (trimmed only) in
+ * {@see \Healthcare\Identity\ValueObject\StrictIdentityTraits}.
  *
  * The INSi téléservice rejects inputs (and outputs) that contain lowercase
- * letters, diacritics (accents, trémas, cédilles) or ligatures (Æ, Œ). The
- * allowed character set is limited to:
+ * letters, diacritics (accents, trémas, cédilles) or ligatures (Æ, Œ); the
+ * allowed character set is A-Z, space, apostrophe "'" (ASCII 39) and hyphen
+ * "-" (ASCII 45).
  *
- * - letters A-Z (uppercase);
- * - space;
- * - apostrophe "'" (ASCII 39);
- * - single or double hyphen "-" / "--" (ASCII 45).
- *
- * Syntactic rules enforced by {@see isValid()}:
- *
- * - the first character must not be a space or a hyphen (it may be an
- *   apostrophe);
- * - a space and an apostrophe cannot be doubled or combined.
+ * Characters with a defined equivalence are transliterated (é → E, ç → C,
+ * œ → OE…). Characters without any defined equivalence (digits, "_", "!",
+ * "/", punctuation…) are NOT silently removed: the reference documents only
+ * state they must not be sent, so {@see self::normalize()} raises an error
+ * rather than silently transforming an identity into another string.
  *
  * Factual references:
  * - GIE SESAM-Vitale, SEL-MP-043 « Guide d'intégration INSi » v05.00.01
- *   (19/12/2025), §2 « Limitations du téléservice » (no lowercase, diacritic
- *   or ligature) and §3.4.1 (EF_INS01_03, EF_INS10_01, EF_INS10_02 : formats
- *   A-Z / space / apostrophe / tiret / double tiret, first-character rules);
- * - ANS, « Format datamatrix INS » v2.2.20230926, §5 (IDs S3 and S4: uppercase
- *   without accent or diacritic, hyphen and apostrophe allowed).
+ *   (19/12/2025), §2 « Limitations du téléservice » and §3.4.1 (EF_INS01_03,
+ *   EF_INS10_01, EF_INS10_02 — formats and syntactic rules per field);
+ * - ANS, « Format datamatrix INS » v2.2.20230926, §5 (IDs S3/S4).
  */
 final class InsiTraitsNormalizer
 {
@@ -64,28 +63,45 @@ final class InsiTraitsNormalizer
     }
 
     /**
-     * Returns the normalized form of a trait string: uppercase, accent- and
-     * ligature-free, restricted to the INSi allowed character set, trimmed.
+     * Returns the normalized form of a value under the given profile:
+     * transliteration of defined equivalents, uppercase, trimming, then a
+     * strict allowed-character-set check.
+     *
+     * @throws InvalidValueObject when the value contains characters without a
+     *                            defined equivalence (silent removal would
+     *                            corrupt identity data)
      */
-    public static function normalize(string $value): string
+    public static function normalize(string $value, InsiTraitProfile $profile): string
     {
         $transliterated = strtr($value, self::ACCENT_MAP);
         $upper = strtoupper($transliterated);
-        $clean = (string) preg_replace('/[^A-Z \'\-]/', '', $upper);
+        $trimmed = trim($upper);
 
-        return trim($clean);
+        if (preg_match('/[^A-Z \'\-]/', $trimmed) === 1) {
+            throw new InvalidValueObject(sprintf(
+                'INSi %s contains characters without a defined equivalence (allowed: A-Z, space, apostrophe, hyphen).',
+                $profile->value
+            ));
+        }
+
+        if ($trimmed === '') {
+            throw new InvalidValueObject(sprintf('INSi %s must not be blank.', $profile->value));
+        }
+
+        return $trimmed;
     }
 
     /**
-     * Whether the value is a structurally valid INSi trait, per the syntactic
-     * rules of SEL-MP-043 §3.4.1 (first character not space/hyphen; space and
-     * apostrophe not doubled or combined).
+     * Whether a value is structurally valid under a profile: allowed
+     * character set, first-character rule (no space or hyphen), space and
+     * apostrophe not doubled or combined, plus profile-specific rules
+     * (last character for given names, no double hyphen in given names).
      */
-    public static function isValid(string $value): bool
+    public static function isValid(string $value, InsiTraitProfile $profile): bool
     {
-        $normalized = self::normalize($value);
-
-        if ($normalized === '') {
+        try {
+            $normalized = self::normalize($value, $profile);
+        } catch (InvalidValueObject) {
             return false;
         }
 
@@ -94,7 +110,8 @@ final class InsiTraitsNormalizer
         }
 
         // A space and an apostrophe cannot be doubled or combined.
-        if (str_contains($normalized, '  ')
+        if (
+            str_contains($normalized, '  ')
             || str_contains($normalized, "''")
             || str_contains($normalized, " '")
             || str_contains($normalized, "' ")
@@ -102,6 +119,51 @@ final class InsiTraitsNormalizer
             return false;
         }
 
+        if ($profile === InsiTraitProfile::GIVEN_NAME) {
+            if (str_contains($normalized, '--')) {
+                return false;
+            }
+
+            $last = $normalized[strlen($normalized) - 1];
+            if ($last === '-') {
+                return false;
+            }
+
+            if ($last === "'") {
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    public static function normalizeBirthFamilyName(string $value): string
+    {
+        return self::normalize($value, InsiTraitProfile::FAMILY_NAME);
+    }
+
+    public static function normalizeGivenName(string $value): string
+    {
+        return self::normalize($value, InsiTraitProfile::GIVEN_NAME);
+    }
+
+    public static function normalizeDatamatrixName(string $value): string
+    {
+        return self::normalize($value, InsiTraitProfile::DATAMATRIX);
+    }
+
+    public static function isValidBirthFamilyName(string $value): bool
+    {
+        return self::isValid($value, InsiTraitProfile::FAMILY_NAME);
+    }
+
+    public static function isValidGivenName(string $value): bool
+    {
+        return self::isValid($value, InsiTraitProfile::GIVEN_NAME);
+    }
+
+    public static function isValidDatamatrixName(string $value): bool
+    {
+        return self::isValid($value, InsiTraitProfile::DATAMATRIX);
     }
 }

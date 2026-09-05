@@ -4,87 +4,121 @@ declare(strict_types=1);
 
 namespace Healthcare\Tests\Identity;
 
+use Healthcare\Identity\Service\InsiTraitProfile;
 use Healthcare\Identity\Service\InsiTraitsNormalizer;
+use Healthcare\Kernel\Exception\InvalidValueObject;
 use PHPUnit\Framework\TestCase;
 
 final class InsiTraitsNormalizerTest extends TestCase
 {
     public function testUppercases(): void
     {
-        self::assertSame('DUPONT', InsiTraitsNormalizer::normalize('dupont'));
+        self::assertSame('DUPONT', InsiTraitsNormalizer::normalize('dupont', InsiTraitProfile::FAMILY_NAME));
     }
 
     public function testStripsDiacritics(): void
     {
-        self::assertSame('GARCIA-HAMMADI', InsiTraitsNormalizer::normalize('García-Hämmadi'));
-        self::assertSame('CELINE', InsiTraitsNormalizer::normalize('Céline'));
-        self::assertSame('REMI', InsiTraitsNormalizer::normalize('Rémi'));
-        self::assertSame('GARAUD', InsiTraitsNormalizer::normalize('GARAUD'));
+        self::assertSame(
+            'GARCIA-HAMMADI',
+            InsiTraitsNormalizer::normalizeBirthFamilyName('García-Hämmadi'),
+        );
+        self::assertSame('CELINE', InsiTraitsNormalizer::normalizeGivenName('Céline'));
+        self::assertSame('REMI', InsiTraitsNormalizer::normalizeGivenName('Rémi'));
     }
 
     public function testExpandsLigatures(): void
     {
-        self::assertSame('OEUVRE', InsiTraitsNormalizer::normalize('Œuvre'));
-        self::assertSame('CAESAR', InsiTraitsNormalizer::normalize('Cæsar'));
+        self::assertSame('OEUVRE', InsiTraitsNormalizer::normalizeBirthFamilyName('Œuvre'));
+        self::assertSame('CAESAR', InsiTraitsNormalizer::normalizeBirthFamilyName('Cæsar'));
     }
 
     public function testKeepsAllowedSpecialCharacters(): void
     {
-        self::assertSame("D'ARGENT", InsiTraitsNormalizer::normalize("d'argent"));
-        self::assertSame('JEAN--CLAUDE', InsiTraitsNormalizer::normalize('Jean--Claude'));
-        self::assertSame('JEAN CLAUDE', InsiTraitsNormalizer::normalize('jean claude'));
+        self::assertSame(
+            "D'ARGENT",
+            InsiTraitsNormalizer::normalizeBirthFamilyName("d'argent"),
+        );
+        self::assertSame('GARCIA--HAMMADI', InsiTraitsNormalizer::normalizeBirthFamilyName('Garcia--Hammadi'));
+        self::assertSame('JEAN CLAUDE', InsiTraitsNormalizer::normalizeGivenName('Jean Claude'));
     }
 
-    public function testStripsForbiddenCharacters(): void
+    public function testFamilyNameAllowsDoubleHyphen(): void
     {
-        self::assertSame('DUPONT', InsiTraitsNormalizer::normalize('Du9pont!'));
-        self::assertSame('MARTINPAUL', InsiTraitsNormalizer::normalize('Martin_Paul'));
+        self::assertTrue(InsiTraitsNormalizer::isValidBirthFamilyName('GARCIA--HAMMADI'));
+    }
+
+    public function testGivenNameRejectsDoubleHyphen(): void
+    {
+        self::assertFalse(InsiTraitsNormalizer::isValidGivenName('JEAN--CLAUDE'));
+    }
+
+    public function testGivenNameLastCharacterMustNotBeHyphenOrApostrophe(): void
+    {
+        self::assertFalse(InsiTraitsNormalizer::isValidGivenName('JEAN-'));
+        self::assertFalse(InsiTraitsNormalizer::isValidGivenName("JEAN'"));
+        self::assertTrue(InsiTraitsNormalizer::isValidGivenName('JEAN'));
+    }
+
+    public function testCharactersWithoutDefinedEquivalenceAreRejected(): void
+    {
+        $this->expectException(InvalidValueObject::class);
+        InsiTraitsNormalizer::normalizeGivenName('Du9pont');
+    }
+
+    public function testUnderscoreIsRejectedNotSilentlyRemoved(): void
+    {
+        $this->expectException(InvalidValueObject::class);
+        InsiTraitsNormalizer::normalizeBirthFamilyName('Martin_Paul');
+    }
+
+    public function testIsValidReturnsFalseForInvalidChars(): void
+    {
+        self::assertFalse(InsiTraitsNormalizer::isValidBirthFamilyName('DUPONT!'));
+        self::assertFalse(InsiTraitsNormalizer::isValidDatamatrixName('SARAH123'));
     }
 
     public function testTrims(): void
     {
-        self::assertSame('DUPONT', InsiTraitsNormalizer::normalize('  dupont  '));
+        self::assertSame('DUPONT', InsiTraitsNormalizer::normalizeBirthFamilyName('  dupont  '));
     }
 
-    public function testEmptyAfterNormalizationIsInvalid(): void
+    public function testBlankIsInvalid(): void
     {
-        self::assertFalse(InsiTraitsNormalizer::isValid(''));
-        self::assertFalse(InsiTraitsNormalizer::isValid('   '));
-        self::assertFalse(InsiTraitsNormalizer::isValid('!!!'));
+        self::assertFalse(InsiTraitsNormalizer::isValidBirthFamilyName(''));
+        self::assertFalse(InsiTraitsNormalizer::isValidGivenName('   '));
     }
 
     public function testFirstCharacterMustNotBeHyphen(): void
     {
-        self::assertFalse(InsiTraitsNormalizer::isValid('-DUPONT'));
-    }
-
-    public function testLeadingSpaceIsNormalizedAway(): void
-    {
-        self::assertSame('DUPONT', InsiTraitsNormalizer::normalize(' DUPONT'));
-        self::assertTrue(InsiTraitsNormalizer::isValid(' DUPONT'));
+        self::assertFalse(InsiTraitsNormalizer::isValidBirthFamilyName('-DUPONT'));
+        self::assertFalse(InsiTraitsNormalizer::isValidGivenName('-JEAN'));
     }
 
     public function testFirstCharacterMayBeApostrophe(): void
     {
-        self::assertTrue(InsiTraitsNormalizer::isValid("D'ARC"));
+        self::assertTrue(InsiTraitsNormalizer::isValidBirthFamilyName("D'ARC"));
     }
 
     public function testSpaceAndApostropheCannotBeDoubledOrCombined(): void
     {
-        self::assertFalse(InsiTraitsNormalizer::isValid('JEAN  CLAUDE'));  // double space
-        self::assertFalse(InsiTraitsNormalizer::isValid("JEAN''PIERRE")); // double apostrophe
-        self::assertFalse(InsiTraitsNormalizer::isValid("JEAN 'PIERRE")); // space + apostrophe
-        self::assertFalse(InsiTraitsNormalizer::isValid("JEAN' PIERRE")); // apostrophe + space
+        foreach (
+            [
+                InsiTraitsNormalizer::isValidBirthFamilyName('JEAN  CLAUDE'),
+                InsiTraitsNormalizer::isValidBirthFamilyName("JEAN''PIERRE"),
+                InsiTraitsNormalizer::isValidBirthFamilyName("JEAN 'PIERRE"),
+                InsiTraitsNormalizer::isValidBirthFamilyName("JEAN' PIERRE"),
+            ] as $result
+        ) {
+            self::assertFalse($result);
+        }
     }
 
-    public function testDoubleHyphenIsAllowed(): void
+    public function testDatamatrixProfileMatchesFamilyNameLexicalRules(): void
     {
-        self::assertTrue(InsiTraitsNormalizer::isValid('JEAN--CLAUDE'));
-    }
-
-    public function testValidValuesAreAccepted(): void
-    {
-        self::assertTrue(InsiTraitsNormalizer::isValid('GARCIA-HAMMADI'));
-        self::assertTrue(InsiTraitsNormalizer::isValid("D'ARGENT"));
+        self::assertTrue(InsiTraitsNormalizer::isValidDatamatrixName('GARCIA--HAMMADI'));
+        self::assertTrue(InsiTraitsNormalizer::isValidDatamatrixName('jean')); // uppercased by normalization
+        // The datamatrix profile has no last-character rule (unlike GIVEN_NAME).
+        self::assertTrue(InsiTraitsNormalizer::isValidDatamatrixName('JEAN-'));
+        self::assertFalse(InsiTraitsNormalizer::isValidDatamatrixName(''));
     }
 }
