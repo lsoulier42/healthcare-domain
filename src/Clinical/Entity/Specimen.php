@@ -13,7 +13,8 @@ use Healthcare\Kernel\ValueObject\Identifier;
 
 /**
  * Minimal specimen model. Processing/aliquots/storage workflows belong
- * to the Laboratory module if needed.
+ * to the Laboratory module if needed. The patient is fixed at construction,
+ * including when unknown, so shared observations and reports stay coherent.
  */
 final class Specimen
 {
@@ -22,7 +23,7 @@ final class Specimen
 
     public function __construct(
         private readonly string $id,
-        private ?PatientReference $patient = null,
+        private readonly ?PatientReference $patient = null,
         private ?SpecimenTypeCode $type = null,
         private ?DateTimeImmutable $collectedAt = null,
         private ?DateTimeImmutable $receivedAt = null,
@@ -67,11 +68,6 @@ final class Specimen
     public function bodySite(): ?CodeableConcept
     {
         return $this->bodySite;
-    }
-
-    public function changePatient(?PatientReference $patient): void
-    {
-        $this->patient = $patient;
     }
 
     public function changeType(?SpecimenTypeCode $type): void

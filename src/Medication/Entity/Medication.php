@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Healthcare\Medication\Entity;
 
+use Healthcare\Kernel\Exception\InvalidDomainState;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\Atc;
 use Healthcare\Kernel\ValueObject\Cis;
@@ -162,9 +163,17 @@ final class Medication
 
     public function addPresentation(MedicationPresentation $presentation): void
     {
+        if ($presentation->medication() !== $this) {
+            throw new InvalidDomainState('A presentation must belong to this medication instance.');
+        }
+
         foreach ($this->presentations as $existing) {
-            if ($existing->id() === $presentation->id()) {
+            if ($existing === $presentation) {
                 return;
+            }
+
+            if ($existing->id() === $presentation->id()) {
+                throw new InvalidDomainState('A different presentation already uses this identifier.');
             }
         }
 
@@ -173,9 +182,19 @@ final class Medication
 
     public function removePresentation(MedicationPresentation $presentation): void
     {
+        if ($presentation->medication() !== $this) {
+            throw new InvalidDomainState('A presentation must belong to this medication instance.');
+        }
+
+        foreach ($this->presentations as $existing) {
+            if ($existing->id() === $presentation->id() && $existing !== $presentation) {
+                throw new InvalidDomainState('A different presentation already uses this identifier.');
+            }
+        }
+
         $this->presentations = array_values(array_filter(
             $this->presentations,
-            static fn (MedicationPresentation $item): bool => $item->id() !== $presentation->id(),
+            static fn (MedicationPresentation $item): bool => $item !== $presentation,
         ));
     }
 }

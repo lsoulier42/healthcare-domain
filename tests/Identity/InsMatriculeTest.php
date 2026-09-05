@@ -10,6 +10,24 @@ use PHPUnit\Framework\TestCase;
 
 final class InsMatriculeTest extends TestCase
 {
+    public function testRejectsLettersInTheControlKey(): void
+    {
+        $value = '18505751230431A'; // Synthetic base whose numeric key is 01.
+        self::assertFalse(InsMatricule::isValidValue($value));
+        self::assertNull(InsMatricule::tryFrom($value));
+
+        $this->expectException(InvalidValueObject::class);
+        new InsMatricule($value);
+    }
+
+    public function testPreservesLeadingZeroInAValidControlKey(): void
+    {
+        $value = '185057512304301';
+        self::assertTrue(InsMatricule::isValidValue($value));
+        self::assertSame($value, (string) new InsMatricule($value));
+        self::assertSame($value, InsMatricule::tryFrom($value)?->value);
+    }
+
     public function testRequiresFullMatriculeWithControlKey(): void
     {
         self::assertSame('185057512345673', (string) new InsMatricule('185057512345673'));

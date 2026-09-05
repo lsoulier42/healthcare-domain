@@ -49,13 +49,16 @@ A consumer should **never have to redefine** what an INS patient identity, a pra
 | `Oid` | ISO object identifier (dotted-decimal arcs) | Syntax + X.660 root arcs |
 | `Date` | Calendar date (YYYY-MM-DD, no time/zone) | Real calendar date |
 | `Cis` | Medicinal product ID (8 digits) | Format |
-| `Cip7` / `Cip13` | Drug presentation codes | Luhn checksum |
+| `Cip7` | Legacy drug presentation code | Luhn checksum (legacy implementation; rule pending verification) |
+| `Cip13` | Drug presentation code | GS1 modulo-10 checksum (alternating weights 1/3) |
 | `Ucd` | Dispensing-unit code (7 digits) | Format |
 | `Atc` | ATC classification code | Format |
 | `CountryCode` | Country (ISO 3166-1 alpha-2) | Format |
 | `CogCode` | Birthplace COG code (5 chars: commune, 99+country, 99999) | Format |
 
 All identifiers normalize their input (trimming, casing, separator stripping) and expose `isValidValue()`, `tryFrom()`, `equals()` and `__toString()`.
+
+The CIP13 check digit follows the GS1 modulo-10 rule, independently of the legacy CIP7 validator. See the [CIP/GS1 coding guide](https://www.miph.gov.dz/fr/wp-content/uploads/2022/11/CIP-GS1-Guide-de-lecture-du-DataMatrix-sur-les-medicaments.pdf) and the [GS1 check-digit calculation](https://www.gs1es.org/servicios/herramientas/gerador-de-etiquetas-logisticas/). Checksum validation establishes structural validity, not whether a code has been allocated to a product.
 
 ## Installation
 
@@ -190,7 +193,7 @@ $medication = new Medication('med-1', 'Example product', cis: new Cis('60000000'
 $presentation = new MedicationPresentation(
     'pres-1',
     $medication,
-    cip13: new Cip13('3400931234560'), // fake CIP
+    cip13: new Cip13('3400931234562'), // fake CIP
     packagingDescription: 'Box of 16 tablets',
 );
 
@@ -269,7 +272,76 @@ echo (string) $study->studyInstanceUid(); // the validated DICOM UID
 - **Fail fast or fail soft** — constructors throw (`InvalidValueObject`, `InvalidIdentifier`, `InvalidPeriod`, `InvalidDomainState`); `isValidValue()` and `tryFrom()` validate external data without exceptions.
 - **Value semantics** — value objects are immutable, normalized on construction, and comparable with `equals()`.
 - **Coded concepts over enums** — externally governed terminologies are `Coding` instances (FHIR Coding semantics), and `CodeableConcept` supports several codings plus a text, so historical and future codes stay representable.
-- **Explicit collections** — entity collections reject semantically duplicate values.
+- **Explicit collections** — value collections deduplicate semantically equal values. Clinical entity collections deduplicate by record ID after checking patient compatibility. Medication presentations additionally enforce ownership and distinguish repeated addition of the same instance from a conflicting instance with the same ID.
+
+## Resource invariants and application responsibilities
+
+The package owns value validation and local consistency of the resource associations it exposes. Consuming applications own persistence, transactions, authorization, clinical workflows, and allowed status transitions. For example, `changeStatus()` accepts a typed status but does not implement a workflow state machine.
+
+### Patient consistency
+
+Linked resources with known patients must refer to the same patient record, compared with `PatientReference::equals()` (record ID only). The following links are checked both at construction and whenever they are assigned or added:
+
+| Resource | Checked links |
+| --- | --- |
+| `ServiceRequest` | Encounter |
+| `Observation` | Specimen |
+| `DiagnosticReport` | Request, encounter, document, results, specimens |
+| `ClinicalDocument` | Encounter |
+| `ImagingStudy` | Request, encounter |
+
+A conflicting association throws `InvalidDomainState` before changing the existing link or collection. For report collections, the patient check also precedes ID deduplication: reusing a resource ID does not bypass the check. Optional links may be cleared with `null`.
+
+A specimen may have an unknown patient (`null`); linking it does not infer or assign a patient. Its patient is fixed at construction, including when unknown. Attributing or correcting it requires a new instance and explicit replacement of the affected links by the application.
+
+### Snapshots and shared mutable resources
+
+The identity attached to a `PatientReference`, `PractitionerReference`, or `OrganizationReference` is an optional immutable snapshot. A later snapshot may differ while the reference still compares equal by record ID.
+
+Links to package entities retain the actual objects; they do not clone them. Changes to an observation's value or a specimen's metadata are therefore visible to every resource sharing that instance. Patient associations are protected against conflicting updates, but the package does not provide historical report snapshots, transaction boundaries, or automatic synchronization of related collections. Applications needing a frozen report must capture and persist their own representation.
+
+### Medication presentation ownership
+
+Constructing a `MedicationPresentation` registers it with its immutable `Medication` owner. Adding or removing it through another medication instance throws `InvalidDomainState`, even when the two medications have the same record ID. Applications must assemble this object graph around a single owner instance.
+
+Adding the same presentation instance again is a no-op. A different instance with an ID already in the collection is rejected, both during construction and explicit addition. Removal rejects a foreign owner or an ID collision with another instance; removing an already absent presentation of the same owner is a no-op. Removing a presentation does not change its owner, and it may subsequently be re-added to that owner.
+
+## Migrating to the unreleased invariant fixes
+
+These changes tighten validation and include a breaking API change:
+
+- **CIP13:** replace fixtures using Luhn keys with independently calculated GS1 keys. The synthetic example `3400931234560` is now rejected; `3400931234562` has the correct GS1 key. Previously accepted stored values should be checked against their source data, not silently rewritten. The CIP7 validator is unchanged pending a separate verification of its official rule.
+- **NIR/INS:** a 15-character identifier must have exactly two numeric key characters. `Nir::hasValidControlKey()` now also checks the base structure and rejects malformed raw input; formatted input should go through `isValidValue()` or `tryFrom()`.
+- **Clinical links:** callers must handle `InvalidDomainState` for patient conflicts. Rehydration must supply consistent patient references for the linked records.
+- **Specimens:** `Specimen::changePatient()` has been removed. Construct a replacement and explicitly reattach it wherever required; existing links keep the previous instance.
+- **Medication presentations:** reuse the existing owner and presentation instances instead of constructing duplicates with the same IDs. For an intentional replacement, remove the old presentation before constructing its replacement. A stale instance cannot remove a replacement with the same ID.
+
+For example, when attributing an unknown specimen, preserve its metadata and identifiers while constructing the replacement:
+
+```php
+use Healthcare\Clinical\Entity\Specimen;
+
+// $previous is the specimen currently linked to $observation and $report.
+// $patientRef is the intended patient, consistent with both resources.
+$replacement = new Specimen(
+    id: $previous->id(),
+    patient: $patientRef,
+    type: $previous->type(),
+    collectedAt: $previous->collectedAt(),
+    receivedAt: $previous->receivedAt(),
+    collectionMethod: $previous->collectionMethod(),
+    bodySite: $previous->bodySite(),
+);
+foreach ($previous->identifiers() as $identifier) {
+    $replacement->addIdentifier($identifier);
+}
+
+$observation->changeSpecimen($replacement);
+$report->removeSpecimen($previous);
+$report->addSpecimen($replacement);
+```
+
+The application coordinates all affected links and persistence atomically when needed. Adding the replacement to a report without first removing the previous specimen is insufficient because that collection deduplicates by record ID.
 
 ## Migrating from 0.1.x to 0.2.0
 
@@ -318,18 +390,21 @@ tests/          # unit + cross-module scenario tests, no database required
 
 ```bash
 composer install
+composer validate --strict
 composer test       # PHPUnit
 composer phpstan    # PHPStan (level 8)
 composer cs         # PHPCS (PSR-12)
 ```
 
-Or with Docker, using the same environment as CI:
+The CI quality matrix runs on PHP 8.2, 8.3, 8.4, and 8.5. To run the checks locally with the PHP 8.3 Docker environment:
 
 ```bash
 docker compose run --rm php test
 docker compose run --rm php phpstan -- --configuration=phpstan.neon.dist
 docker compose run --rm php cs
 ```
+
+If a local PHPUnit cache is not writable, `composer test -- --do-not-cache-result` runs the same suite without writing that cache.
 
 ## Security
 

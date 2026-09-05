@@ -13,6 +13,8 @@ use Healthcare\Kernel\ValueObject\Ucd;
  * One package presentation of a medication: identified by CIP7/CIP13.
  * The UCD (smallest dispensing unit) attaches to the presentation, per
  * the official allocation rule (one UCD per CIP).
+ * Construction registers this instance with its immutable medication owner.
+ * Removing it from that owner's collection does not transfer ownership.
  */
 final class MedicationPresentation
 {

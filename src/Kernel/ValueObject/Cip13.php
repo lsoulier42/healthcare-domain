@@ -13,6 +13,6 @@ final readonly class Cip13 extends AbstractStringValueObject
 
     protected static function isValid(string $value): bool
     {
-        return preg_match('/^\d{13}$/', $value) === 1 && Checksum::luhn($value);
+        return preg_match('/^\d{13}$/', $value) === 1 && Checksum::gs1($value);
     }
 }

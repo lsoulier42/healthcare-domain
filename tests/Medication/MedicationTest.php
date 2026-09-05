@@ -140,7 +140,7 @@ final class MedicationTest extends TestCase
         $presentationA = new MedicationPresentation(
             'pres-1',
             $medication,
-            cip13: new Cip13('3400931234560'),
+            cip13: new Cip13('3400931234562'),
             ucd: new Ucd('1234567'),
             packagingDescription: 'Boîte de 16 comprimés',
         );
@@ -160,7 +160,7 @@ final class MedicationTest extends TestCase
         self::assertSame('10219000', $form->coding->code);
         self::assertSame('20053000', $medication->administrationRoutes()[0]->coding->code);
         self::assertCount(2, $medication->presentations());
-        self::assertSame('3400931234560', (string) $presentationA->cip13());
+        self::assertSame('3400931234562', (string) $presentationA->cip13());
         self::assertSame('1234567', (string) $presentationA->ucd());
         self::assertSame('3400934', (string) $presentationB->cip7());
     }
