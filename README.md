@@ -40,16 +40,21 @@ A consumer should **never have to redefine** what an INS patient identity, a pra
 The package ships with domain blocks for the French INSi téléservice and the INS
 datamatrix, built against the official references:
 
-- `Identity\Service\InsiTraitsNormalizer` — the INSi lexical profile
-  (uppercase, accent/ligature-free, allowed separators) required for
-  téléservice inputs (SEL-MP-043 v05.00.01) and datamatrix fields S3/S4
-  (ANS « Format datamatrix » v2.2);
+- `Identity\Service\InsiTraitsNormalizer` (+ `InsiTraitProfile`) — the INSi
+  lexical profiles (family name / given name / datamatrix: uppercase,
+  accent- and ligature-free, allowed separators; undefined characters are
+  rejected, not silently stripped) required for téléservice inputs
+  (SEL-MP-043 v05.00.01) and datamatrix fields S3/S4 (ANS « Format
+  datamatrix » v2.2);
 - `Identity\Service\InsiDatamatrixPayload` — the INS datamatrix message
-  builder (header + S1..S7 blocks, `<GS>` separator rule, JJ-MM-AAAA dates);
+  builder, from a QUALIFIED identity only (header + S1..S7 blocks, `<GS>`
+  separator rule at maximum length, JJ-MM-AAAA dates, enforced size bounds);
 - `Identity\ValueObject\IdentityAttribute(s)` — the RNIV identity attributes
-  (homonyme / douteux / fictif) and their invariants;
-- `Care\ValueObject\InsurancePractice` — the assertion PS payload
-  (identifiantFacturation, codeSpecialite, secteurActivite).
+  (homonyme / douteux / fictif), integrated into `PatientIdentity` with the
+  status invariants of [EXI ID 24/26];
+- `Care\ValueObject\AmoPracticeContext` — the assertion PS payload
+  (identifiantFacturation, secteurActivite, codeSpecialite for physicians,
+  gipProfessionCode for PSC).
 
 See `INSi-adaptations.md` for the factual references and design
 rationale.
