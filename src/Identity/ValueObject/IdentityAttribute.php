@@ -45,13 +45,15 @@ enum IdentityAttribute: string
     /**
      * Whether this attribute can coexist with another one.
      *
-     * Per [EXI ID 24], only the « douteux » and « homonyme » attributes may be
-     * combined; the « fictif » and « douteux » attributes cannot be cumulated.
+     * Per [EXI ID 24] / RNIV: « Seuls les attributs douteux et homonymes
+     * peuvent être utilisés simultanément » — DOUBTFUL + HOMONYM is the only
+     * authorized combination. The « fictif » and « douteux » attributes
+     * cannot be cumulated, nor can « fictif » be combined with « homonyme ».
      */
     public function combinesWith(self $other): bool
     {
-        return !($this === self::DOUBTFUL && $other === self::FICTITIOUS)
-            && !($this === self::FICTITIOUS && $other === self::DOUBTFUL);
+        return ($this === self::DOUBTFUL && $other === self::HOMONYM)
+            || ($this === self::HOMONYM && $other === self::DOUBTFUL);
     }
 
     /**

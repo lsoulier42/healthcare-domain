@@ -62,6 +62,13 @@ final class IdentityAttributesTest extends TestCase
         new IdentityAttributes([IdentityAttribute::FICTITIOUS, IdentityAttribute::DOUBTFUL]);
     }
 
+    public function testFictitiousAndHomonymTogetherAreRejected(): void
+    {
+        $this->expectException(InvalidValueObject::class);
+
+        new IdentityAttributes([IdentityAttribute::FICTITIOUS, IdentityAttribute::HOMONYM]);
+    }
+
     public function testHomonymCombinesWithDoubtful(): void
     {
         $attributes = new IdentityAttributes([

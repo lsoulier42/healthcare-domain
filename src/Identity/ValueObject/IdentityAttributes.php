@@ -43,11 +43,15 @@ final readonly class IdentityAttributes
         }
 
         if (
-            in_array(IdentityAttribute::FICTITIOUS, $unique, true)
-            && in_array(IdentityAttribute::DOUBTFUL, $unique, true)
+            count($unique) > 1
+            && !(
+                in_array(IdentityAttribute::DOUBTFUL, $unique, true)
+                && in_array(IdentityAttribute::HOMONYM, $unique, true)
+                && count($unique) === 2
+            )
         ) {
             throw new InvalidValueObject(
-                'Identity « fictif » and « douteux » attributes cannot be cumulated ([EXI ID 24]).'
+                'Only the « douteux » and « homonyme » identity attributes may be combined ([EXI ID 24]).'
             );
         }
 

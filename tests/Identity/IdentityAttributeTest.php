@@ -16,16 +16,18 @@ final class IdentityAttributeTest extends TestCase
         self::assertSame('Identité fictive', IdentityAttribute::FICTITIOUS->label());
     }
 
-    public function testFictitiousAndDoubtfulCannotBeCombined(): void
+    public function testOnlyDoubtfulAndHomonymCombine(): void
     {
-        self::assertFalse(IdentityAttribute::DOUBTFUL->combinesWith(IdentityAttribute::FICTITIOUS));
-        self::assertFalse(IdentityAttribute::FICTITIOUS->combinesWith(IdentityAttribute::DOUBTFUL));
+        self::assertTrue(IdentityAttribute::DOUBTFUL->combinesWith(IdentityAttribute::HOMONYM));
+        self::assertTrue(IdentityAttribute::HOMONYM->combinesWith(IdentityAttribute::DOUBTFUL));
     }
 
-    public function testHomonymCombinesWithEverything(): void
+    public function testFictitiousCombinesWithNothing(): void
     {
-        self::assertTrue(IdentityAttribute::HOMONYM->combinesWith(IdentityAttribute::DOUBTFUL));
-        self::assertTrue(IdentityAttribute::HOMONYM->combinesWith(IdentityAttribute::FICTITIOUS));
+        self::assertFalse(IdentityAttribute::FICTITIOUS->combinesWith(IdentityAttribute::HOMONYM));
+        self::assertFalse(IdentityAttribute::HOMONYM->combinesWith(IdentityAttribute::FICTITIOUS));
+        self::assertFalse(IdentityAttribute::FICTITIOUS->combinesWith(IdentityAttribute::DOUBTFUL));
+        self::assertFalse(IdentityAttribute::DOUBTFUL->combinesWith(IdentityAttribute::FICTITIOUS));
     }
 
     public function testOnlyDoubtfulAndFictitiousRestrictToProvisional(): void
