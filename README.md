@@ -28,12 +28,36 @@ A consumer should **never have to redefine** what an INS patient identity, a pra
 | --- | --- |
 | `Healthcare\Kernel` | CodeSystem / Coding / CodeableConcept, Period, Quantity, Unit (UCUM), Ratio, generic Identifier, Oid, Date, validated identifiers, exceptions |
 | `Healthcare\Geographic` | Address, CountryCode, CogCode |
-| `Healthcare\Identity` | PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, HumanName, AdministrativeGender, IdentityStatus (RNIV) |
+| `Healthcare\Identity` | PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, IdentityAttribute(s), HumanName, AdministrativeGender, IdentityStatus (RNIV) |
 | `Healthcare\Care` | PractitionerIdentity, OrganizationIdentity, PractitionerRole, PatientReference, PractitionerReference, OrganizationReference, ContactPoint, profession/savoir-faire/category codes |
 | `Healthcare\Clinical` | Encounter, ServiceRequest, Observation, ReferenceRange, DiagnosticReport, Specimen, ClinicalDocument |
 | `Healthcare\Medication` | Medication (CIS), MedicationPresentation (CIP/UCD), MedicationComponent, ActiveSubstance |
 | `Healthcare\Laboratory` | AccessionNumber |
 | `Healthcare\Imaging` | DicomUid + Study/Series/SOP instance UIDs, imaging AccessionNumber, ModalityCode, ImagingStudy |
+
+### INSi / SESAM-Vitale readiness
+
+The package ships with domain blocks for the French INSi téléservice and the INS
+datamatrix, built against the official references:
+
+- `Identity\Service\InsiTraitsNormalizer` (+ `InsiTraitProfile`) — the INSi
+  lexical profiles (family name / given name / datamatrix: uppercase,
+  accent- and ligature-free, allowed separators; undefined characters are
+  rejected, not silently stripped) required for téléservice inputs
+  (SEL-MP-043 v05.00.01) and datamatrix fields S3/S4 (ANS « Format
+  datamatrix » v2.2);
+- `Identity\Service\InsiDatamatrixPayload` — the INS datamatrix message
+  builder, from a QUALIFIED identity only (header + S1..S7 blocks, `<GS>`
+  separator rule at maximum length, JJ-MM-AAAA dates, enforced size bounds);
+- `Identity\ValueObject\IdentityAttribute(s)` — the RNIV identity attributes
+  (homonyme / douteux / fictif), integrated into `PatientIdentity` with the
+  status invariants of [EXI ID 24/26];
+- `Care\ValueObject\AmoPracticeContext` — the assertion PS payload
+  (identifiantFacturation, secteurActivite, codeSpecialite for physicians,
+  gipProfessionCode for PSC).
+
+See `INSi-adaptations.md` for the factual references and design
+rationale.
 
 ### Validated French identifiers
 
@@ -72,13 +96,16 @@ composer require lsoulier42/healthcare-domain
 
 ### 1. Composing a patient identity in an application patient record
 
-The `Healthcare\Identity` module separates five semantic concepts:
+The `Healthcare\Identity` module separates six semantic concepts:
 
 - **`StrictIdentityTraits`** — the strict RNIV/INS identity traits: birth family name, first birth given name, birth date, administrative gender, COG birthplace code. The full birth given-name list (`birthGivenNames`) is optional: the RNIV requires only the first given name for identity creation, the complete list is a trait to complete later.
 - **`InsMatricule`** — the 15-character INS matricule component (NIR or NIA with its mod-97 control key). An `InsMatricule` is not a complete INS identifier.
 - **`InsAssigningAuthority`** — the authority assigning/interpreting the matricule, identified by its OID.
 - **`InsIdentifier`** — the complete INS identifier: matricule + assigning authority.
 - **`PatientIdentity`** — strict traits + optional INS identifier + RNIV status.
+- **`IdentityAttribute(s)`** — the RNIV attributes (homonyme / douteux /
+  fictif), owned by `PatientIdentity`, which enforces their status invariants
+  ([EXI ID 24], [EXI ID 26]).
 
 The application owns its patient record; it composes a `PatientIdentity` when the strict shared identity can truthfully be represented:
 
