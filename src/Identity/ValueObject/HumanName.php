@@ -9,6 +9,14 @@ use Healthcare\Kernel\Exception\InvalidValueObject;
 /**
  * Immutable human name model, sized for French identity and
  * professional names (INS traits + usual names).
+ *
+ * The « prénom utilisé » (usual given name) completes the « nom utilisé »
+ * (usualName): per [EXI ID 08], none of them may be auto-populated from the
+ * birth names — filling them is a voluntary user action the software may
+ * only facilitate.
+ *
+ * Factual references: Guide d'implémentation INS v3.0 (DNS, 12/2024),
+ * exigence [EXI ID 08] ; RNIV, ex. EXI PP 17 / EXI PP 18.
  */
 final readonly class HumanName
 {
@@ -19,6 +27,8 @@ final readonly class HumanName
 
     public ?string $usualName;
 
+    public ?string $usualGivenName;
+
     /**
      * @param list<string> $givenNames
      */
@@ -26,6 +36,7 @@ final readonly class HumanName
         string $familyName,
         array $givenNames = [],
         ?string $usualName = null,
+        ?string $usualGivenName = null,
     ) {
         $normalizedFamily = trim($familyName);
 
@@ -42,10 +53,12 @@ final readonly class HumanName
         }
 
         $normalizedUsual = $usualName === null ? null : trim($usualName);
+        $normalizedUsualGiven = $usualGivenName === null ? null : trim($usualGivenName);
 
         $this->familyName = $normalizedFamily;
         $this->givenNames = $normalizedGiven;
         $this->usualName = $normalizedUsual === '' ? null : $normalizedUsual;
+        $this->usualGivenName = $normalizedUsualGiven === '' ? null : $normalizedUsualGiven;
     }
 
     public function firstGivenName(): ?string
@@ -62,7 +75,8 @@ final readonly class HumanName
     {
         return $this->familyName === $other->familyName
             && $this->givenNames === $other->givenNames
-            && $this->usualName === $other->usualName;
+            && $this->usualName === $other->usualName
+            && $this->usualGivenName === $other->usualGivenName;
     }
 
     public function __toString(): string
