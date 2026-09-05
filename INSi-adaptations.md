@@ -21,6 +21,14 @@ fonctionnalités cibles en préparation :
 2. **Connexion et identification du médecin via Pro Santé Connect (e-CPS)** ;
 3. **Ordonnance numérique** (PDF signé, cartouche INS + datamatrix).
 
+> **Précision** : le **datamatrix INS** (identité du patient, ANS v2.2) et le
+> **QR code de l'Ordonnance Numérique** (identifiant de prescription remis à
+> la base e-prescription de l'Assurance Maladie, cf. fiche G_NIUS
+> « Ordonnance numérique ») sont deux éléments distincts. Cette branche
+> prépare le **socle INS/INSi + contexte PSC nécessaire aux futurs flux
+> ordonnance numérique** — elle n'implémente pas le domaine Ordonnance
+> Numérique lui-même (modèles laissés aux applications).
+
 Les adaptations suivantes préparent ces trois points **sans** voir le code des
 applications consommatrices (agrégats, persistance et workflows restent
 applicatifs, conformément à la philosophie de la librairie : « consumer owns
@@ -55,9 +63,15 @@ traitement particulier, avec des invariants contraignants :
 **Décisions de conception.** Enum + collection immuable qui valide la règle de
 cumul à la construction et expose `requiresProvisionalStatus()` /
 `blocksInsiLookup()` (les deux découlent du même invariant) et
-`combinesWith()` (règle de cumul). La machine à états applicable (transitions,
-rétrogradation), elle, reste côté application car elle dépend du statut et des
-workflows applicatifs.
+`combinesWith()` (règle de cumul). Seule la combinaison `douteux + homonyme`
+est légale (RNIV : « Seuls les attributs douteux et homonymes peuvent être
+utilisés simultanément », [EXI ID 24]). Les attributs sont **intégrés à
+`PatientIdentity`** (champ `attributes`) : les factories
+`validated()`/`recovered()`/`qualified()` rejettent toute identité douteuse ou
+fictive (`InvalidDomainState`), rendant l'état interdit [EXI ID 26]
+inconstructible — pure cohérence de valeur, sans poids applicatif. La machine
+à états applicable (transitions, rétrogradation), elle, reste côté application
+car elle dépend des workflows applicatifs.
 
 ### 2.2 `Identity\Service\InsiTraitsNormalizer`
 
@@ -83,10 +97,16 @@ combinés.
 (qui n'installe que `mbstring`). Distinction nette : la librairie **préserve**
 les valeurs stockées (« trimmed only », politique de `StrictIdentityTraits`) ;
 la normalisation stricte n'est appliquée qu'**au moment de l'appel INSi ou de
-l'encodage du datamatrix**. `normalize()` (profil lexical) et `isValid()`
-(règles syntaxiques) sont exposés séparément.
+l'encodage du datamatrix**. L'API distingue trois **profils lexicaux**
+(`InsiTraitProfile` : FAMILY_NAME, GIVEN_NAME, DATAMATRIX) car les règles ne
+sont pas identiques entre nom et prénom (double tiret autorisé pour le nom,
+interdit pour un prénom ; dernier caractère ≠ tiret/apostrophe pour un prénom
+[SEL-MP-043 §3.4.1]). Les caractères **sans équivalence définie** (chiffres,
+`_`, `!`, `/`…) ne sont **pas supprimés silencieusement** : ils rejettent la
+valeur (`InvalidValueObject`), le guide prescrivant de ne pas les envoyer et
+non de les effacer. `normalize()` et `isValid()` sont exposés par profil.
 
-### 2.3 `Care\ValueObject\InsurancePractice`
+### 2.3 `Care\ValueObject\AmoPracticeContext` (ex-`InsurancePractice`)
 
 **Pourquoi.** Chaque opération INSi (WS_INS1 à WS_INS5) transporte une
 **assertion PS** dont l'`AttributeStatement` doit contenir au minimum :
@@ -108,9 +128,12 @@ formation) et `secteurActivite`.
 **Décisions de conception.** Valeurs **non figées dans des enums** : les tables
 de codes sont gouvernées par des référentiels externes évolutifs ([CI],
 TRE_R38 pour la spécialité ordinale — distincte du `codeSpecialite` AMO).
-Champs trimés et non vides. La spécialité ordinale (`SavoirFaireCode`/TRE_R38)
-existe déjà dans la librairie et **ne doit pas être confondue** avec le
-`codeSpecialite` AMO de l'assertion.
+`codeSpecialite` est **nullable** : il n'est obligatoire que pour les médecins
+et médecins en formation ; `gipProfessionCode` est ajouté pour le mode PSC
+quand l'utilisateur possède plusieurs professions ([SEL-MP-043 §3.2]). Les
+champs obligatoires (identifiantFacturation, secteurActivite) sont trimés et
+non vides. La spécialité ordinale (`SavoirFaireCode`/TRE_R38) existe déjà dans
+la librairie et **ne doit pas être confondue** avec le `codeSpecialite` AMO.
 
 ### 2.4 `Identity\Service\InsiDatamatrixPayload`
 
@@ -145,9 +168,14 @@ normative précise.
 
 **Décisions de conception.** La classe construit **la chaîne** (en-tête +
 message) ; le rendu graphique (bibliothèque datamatrix ECC200, C40 de l'en-tête,
-marquage) reste dans la couche de rendu applicative. Le sexe indéterminé (I)
-est rejeté : INSi ne délivre que F/M (EF_INS25_04). La date passe du format de
-stockage AAAA-MM-JJ au format datamatrix JJ-MM-AAAA.
+marquage) reste dans la couche de rendu applicative. L'API n'accepte **qu'une
+identité QUALIFIÉE** (`fromQualifiedIdentity`) : matricule et OID sont lus
+depuis l'`InsIdentifier` (un matricule ne voyage jamais seul) et une identité
+non qualifiée est rejetée ([EXI ID 29]). Le séparateur `<GS>` n'est posé que si
+un champ variable n'a **pas atteint sa longueur maximale** et n'est pas le
+dernier ; les bornes (S2 : 19-20, S3/S4 : 1-100) sont vérifiées. Le sexe
+indéterminé (I) est rejeté : INSi ne délivre que F/M (EF_INS25_04). La date
+passe du format de stockage AAAA-MM-JJ au format datamatrix JJ-MM-AAAA.
 
 ---
 
@@ -179,3 +207,35 @@ côté démarches ; le client SOAP (`InsiSoapClient`) et la passerelle
 - Politique : la librairie ne possède ni persistance, ni agrégats applicatifs,
   ni UI — uniquement de la sémantique de domaine et des services de domaine
   purs.
+
+---
+
+## 5. Revue indépendante — corrections intégrées (passe 2)
+
+Une revue indépendante (documents officiels relus, pas seulement le code) a
+relevé des points corrigés dans les commits de passe 2 (`37cc5d4` à `81910f7`) :
+
+1. **Combinaison des attributs RNIV** : seuls `douteux + homonyme` peuvent
+   coexister ([EXI ID 24]) — l'ancienne tolérance `homonyme + fictif` a été
+   retirée ;
+2. **Attributs intégrés à `PatientIdentity`** : l'état « identité douteuse +
+   statut qualifié » était constructible (deux objets séparément valides
+   formant un état global interdit [EXI ID 26]) ; il est désormais
+   inconstructible (factories gardées) ;
+3. **Datamatrix** : règle `<GS>` corrigée (pas de séparateur à la longueur
+   maximale), bornes S2/S3/S4 vérifiées, API basée sur une
+   `PatientIdentity` qualifiée via `fromQualifiedIdentity()` ;
+4. **Normalisation** : profils lexicaux distincts (nom / prénom / datamatrix)
+   et rejet (au lieu de suppression silencieuse) des caractères sans
+   équivalence ;
+5. **Contexte AMO** : `codeSpecialite` nullable (obligatoire médecins),
+   `gipProfessionCode` ajouté (PSC multi-professions), classe renommée
+   `AmoPracticeContext`.
+
+**Frontières confirmées par la revue** : PSC/OIDC (jetons, token-exchange),
+assertion SAML, SOAP INSi, certificats, numéro d'autorisation CNDA restent
+**hors** `healthcare-domain` (intégration/infrastructure des applications ;
+une future librairie `healthcare-integration` si plusieurs applications en ont
+besoin). La branche prépare le **socle INS/INSi + contexte PSC nécessaire aux
+futurs flux ordonnance numérique** ; elle n'implémente pas le domaine
+Ordonnance Numérique (datamatrix INS ≠ QR code Ordonnance Numérique).
