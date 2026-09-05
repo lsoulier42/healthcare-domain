@@ -51,8 +51,9 @@ traitement particulier, avec des invariants contraignants :
   matricule INS et OID **invalidés** ;
 - **fictif** : identités sensibles ou imaginaires (tests informatiques,
   formation) ; mêmes contraintes que « douteux » ;
-- « fictif » et « douteux » ne peuvent pas être cumulés ; « homonyme » peut
-  être cumulé avec l'un ou l'autre.
+- **seule la combinaison « douteux » + « homonyme » est autorisée** (RNIV :
+  « Seuls les attributs douteux et homonymes peuvent être utilisés
+  simultanément ») ; « fictif » ne se combine avec aucun autre attribut.
 
 **Références factuelles.**
 - Guide d'implémentation INS (DNS v3.0), ex. **EXI ID 24** (attributs) et
@@ -109,7 +110,10 @@ non de les effacer. `normalize()` et `isValid()` sont exposés par profil.
 ### 2.3 `Care\ValueObject\AmoPracticeContext` (ex-`InsurancePractice`)
 
 **Pourquoi.** Chaque opération INSi (WS_INS1 à WS_INS5) transporte une
-**assertion PS** dont l'`AttributeStatement` doit contenir au minimum :
+**assertion PS** dès lors qu'un mode d'authentification à assertion PS est
+utilisé (CPx et PSC en comportent une ; l'authentification TLS mutuelle par
+certificat logiciel n'en comporte aucune — SEL-MP-043 §3.2), dont
+l'`AttributeStatement` doit contenir au minimum :
 `identifiantFacturation` (pour les établissements : FINESS géographique sinon
 SIRET ; pour les autres acteurs, dont les libéraux : identifiant AM de
 facturation — le guide recommande de le rendre **paramétrable** dans le

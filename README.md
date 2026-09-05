@@ -96,13 +96,16 @@ composer require lsoulier42/healthcare-domain
 
 ### 1. Composing a patient identity in an application patient record
 
-The `Healthcare\Identity` module separates five semantic concepts:
+The `Healthcare\Identity` module separates six semantic concepts:
 
 - **`StrictIdentityTraits`** — the strict RNIV/INS identity traits: birth family name, first birth given name, birth date, administrative gender, COG birthplace code. The full birth given-name list (`birthGivenNames`) is optional: the RNIV requires only the first given name for identity creation, the complete list is a trait to complete later.
 - **`InsMatricule`** — the 15-character INS matricule component (NIR or NIA with its mod-97 control key). An `InsMatricule` is not a complete INS identifier.
 - **`InsAssigningAuthority`** — the authority assigning/interpreting the matricule, identified by its OID.
 - **`InsIdentifier`** — the complete INS identifier: matricule + assigning authority.
 - **`PatientIdentity`** — strict traits + optional INS identifier + RNIV status.
+- **`IdentityAttribute(s)`** — the RNIV attributes (homonyme / douteux /
+  fictif), owned by `PatientIdentity`, which enforces their status invariants
+  ([EXI ID 24], [EXI ID 26]).
 
 The application owns its patient record; it composes a `PatientIdentity` when the strict shared identity can truthfully be represented:
 
