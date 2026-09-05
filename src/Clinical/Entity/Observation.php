@@ -6,6 +6,7 @@ namespace Healthcare\Clinical\Entity;
 
 use DateTimeImmutable;
 use Healthcare\Care\ValueObject\PatientReference;
+use Healthcare\Clinical\PatientConsistency;
 use Healthcare\Clinical\ValueObject\ObservationStatus;
 use Healthcare\Clinical\ValueObject\ObservationValue;
 use Healthcare\Clinical\ValueObject\ObservationCode;
@@ -40,6 +41,8 @@ final class Observation
         if (trim($id) === '') {
             throw new InvalidValueObject('An observation requires an identifier.');
         }
+
+        PatientConsistency::assertCompatible($patient, $specimen?->patient());
     }
 
     public function id(): string
@@ -118,6 +121,7 @@ final class Observation
 
     public function changeSpecimen(?Specimen $specimen): void
     {
+        PatientConsistency::assertCompatible($this->patient, $specimen?->patient());
         $this->specimen = $specimen;
     }
 

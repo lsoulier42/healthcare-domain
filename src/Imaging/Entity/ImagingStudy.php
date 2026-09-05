@@ -9,6 +9,7 @@ use Healthcare\Care\ValueObject\OrganizationReference;
 use Healthcare\Care\ValueObject\PatientReference;
 use Healthcare\Clinical\Entity\Encounter;
 use Healthcare\Clinical\Entity\ServiceRequest;
+use Healthcare\Clinical\PatientConsistency;
 use Healthcare\Imaging\ValueObject\AccessionNumber;
 use Healthcare\Imaging\ValueObject\ModalityCode;
 use Healthcare\Imaging\ValueObject\StudyInstanceUid;
@@ -36,6 +37,9 @@ final class ImagingStudy
         if (trim($id) === '') {
             throw new InvalidValueObject('An imaging study requires an identifier.');
         }
+
+        PatientConsistency::assertCompatible($patient, $encounter?->patient());
+        PatientConsistency::assertCompatible($patient, $request?->patient());
     }
 
     public function id(): string
@@ -85,11 +89,13 @@ final class ImagingStudy
 
     public function changeRequest(?ServiceRequest $request): void
     {
+        PatientConsistency::assertCompatible($this->patient, $request?->patient());
         $this->request = $request;
     }
 
     public function changeEncounter(?Encounter $encounter): void
     {
+        PatientConsistency::assertCompatible($this->patient, $encounter?->patient());
         $this->encounter = $encounter;
     }
 

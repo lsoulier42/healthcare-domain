@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Healthcare\Care\ValueObject\OrganizationReference;
 use Healthcare\Care\ValueObject\PatientReference;
 use Healthcare\Care\ValueObject\PractitionerReference;
+use Healthcare\Clinical\PatientConsistency;
 use Healthcare\Clinical\ValueObject\ServiceRequestStatus;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\CodeableConcept;
@@ -32,6 +33,8 @@ final class ServiceRequest
         if (trim($id) === '') {
             throw new InvalidValueObject('A service request requires an identifier.');
         }
+
+        PatientConsistency::assertCompatible($patient, $encounter?->patient());
     }
 
     public function id(): string
@@ -101,6 +104,7 @@ final class ServiceRequest
 
     public function changeEncounter(?Encounter $encounter): void
     {
+        PatientConsistency::assertCompatible($this->patient, $encounter?->patient());
         $this->encounter = $encounter;
     }
 

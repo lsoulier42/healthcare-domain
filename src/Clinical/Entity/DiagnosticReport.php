@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Healthcare\Care\ValueObject\OrganizationReference;
 use Healthcare\Care\ValueObject\PatientReference;
 use Healthcare\Care\ValueObject\PractitionerReference;
+use Healthcare\Clinical\PatientConsistency;
 use Healthcare\Clinical\ValueObject\DiagnosticReportStatus;
 use Healthcare\Kernel\Exception\InvalidValueObject;
 use Healthcare\Kernel\ValueObject\CodeableConcept;
@@ -40,6 +41,10 @@ final class DiagnosticReport
         if (trim($id) === '') {
             throw new InvalidValueObject('A diagnostic report requires an identifier.');
         }
+
+        PatientConsistency::assertCompatible($patient, $encounter?->patient());
+        PatientConsistency::assertCompatible($patient, $request?->patient());
+        PatientConsistency::assertCompatible($patient, $document?->patient());
     }
 
     public function id(): string
@@ -109,11 +114,13 @@ final class DiagnosticReport
 
     public function changeRequest(?ServiceRequest $request): void
     {
+        PatientConsistency::assertCompatible($this->patient, $request?->patient());
         $this->request = $request;
     }
 
     public function changeEncounter(?Encounter $encounter): void
     {
+        PatientConsistency::assertCompatible($this->patient, $encounter?->patient());
         $this->encounter = $encounter;
     }
 
@@ -139,6 +146,7 @@ final class DiagnosticReport
 
     public function changeDocument(?ClinicalDocument $document): void
     {
+        PatientConsistency::assertCompatible($this->patient, $document?->patient());
         $this->document = $document;
     }
 
@@ -150,6 +158,8 @@ final class DiagnosticReport
 
     public function addResult(Observation $observation): void
     {
+        PatientConsistency::assertCompatible($this->patient, $observation->patient());
+
         foreach ($this->results as $existing) {
             if ($existing->id() === $observation->id()) {
                 return;
@@ -175,6 +185,8 @@ final class DiagnosticReport
 
     public function addSpecimen(Specimen $specimen): void
     {
+        PatientConsistency::assertCompatible($this->patient, $specimen->patient());
+
         foreach ($this->specimens as $existing) {
             if ($existing->id() === $specimen->id()) {
                 return;
