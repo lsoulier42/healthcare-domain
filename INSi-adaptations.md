@@ -187,20 +187,25 @@ passe du format de stockage AAAA-MM-JJ au format datamatrix JJ-MM-AAAA.
 
 ---
 
-## 3. Reste à faire (recommandations suivantes, non livrées ici)
+## 3. Extensions livrées (passe 3, branche `feat/insi-extensions`)
 
-| Sujet | Référence | Note |
+| Livraison | Référence | Contenu |
 |---|---|---|
-| `BirthDate` (date fictive/incertaine) | Guide INS v3.0, EXI ID 11-12 (marqueur « date fictive/incertaine » ; règles de complétion 01/MM, JJ/01, 31/12) | Distingue identité sanitaire vs facturation |
-| `UsualGivenName` (prénom utilisé) | Guide INS v3.0, EXI ID 08 (jamais auto-alimenté) ; RNIV EXI PP 18 | `HumanName` couvre le nom utilisé, pas le prénom utilisé |
-| Cohérence 1er prénom ↔ début de liste | Guide INS v3.0, EXI ID 10 (tirets/apostrophes ≡ espaces, alerte) | Utile au-delà : recherche d'antériorité |
-| `InsIdentifierHistory` (matricules historisés) | Guide INS v3.0, EXI REC 08 (conservation à l'identique, historique) ; SEL-MP-043 §3.4.2 (INSHISTO) | Limite : 10 changements (régime général, après 2006) |
-| `IdentificationEvidence` (justificatif + confiance) | Guide INS v3.0, EXI ID 19 (dispositif à haut niveau de confiance, paramétrable) | Exigence organisationnelle RNIV |
-| `DoseInstruction` / `PrescriptionLine` | Ordonnance structurée (V1/V2) | Ne pas verrouiller le format (ordonnance simple vs SCOR) |
+| `BirthDate` (marqueur date fictive/incertaine) | EXI ID 11-12 | Règles de complétion officielles (01/MM, JJ/01, 31/12) + marqueur `estimated` pouvant transiter dans les flux |
+| `UsualGivenName` sur `HumanName` | EXI ID 08 ; RNIV EXI PP 18 | « Prénom utilisé » (jamais auto-alimenté), complétant le « nom utilisé » |
+| `FirstGivenNameConsistency` | EXI ID 10 | Cohérence 1er prénom ↔ début de liste des prénoms (tirets/apostrophes ≡ espaces) |
+| `InsIdentifierHistory` (`HistoricalInsIdentifier`) | EXI REC 08 ; SEL-MP-043 §3.4.2 (INSHISTO) | Historique des matricules conservé à l'identique (matricule + OID + période) |
+| `IdentificationEvidence` | EXI ID 19 ; RNIV §3.3.2 | Type de justificatif + niveau de confiance (liste ouverte paramétrable, factories pour les dispositifs à haut niveau de confiance) |
+| `DoseInstruction` | Ordonnance structurée (V1/V2) | Posologie générique text-first (quantité, fréquence, durée, voie EDQM) — **volontairement** non verrouillée sur un profil d'ordonnance |
+
+**Reste côté applicatif** : `PrescriptionLine` / l'agrégat Ordonnance (le choix
+du profil — ordonnance simple vs SCOR — n'est pas encore arrêté) et toute la
+couche d'intégration : client SOAP (`InsiSoapClient`), passerelle
+(`INsiGateway` + Mock), PSC/OIDC et token-exchange, qui restent hors
+`healthcare-domain` (voir §5).
 
 Les pistes PSC (bac à sable) et CNDA (n° d'autorisation de test) sont en cours
-côté démarches ; le client SOAP (`InsiSoapClient`) et la passerelle
-(`INsiGateway` + Mock) se construisent ensuite sur ces blocs.
+côté démarches ; l'intégration se construira sur ces blocs.
 
 ---
 

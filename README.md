@@ -28,10 +28,10 @@ A consumer should **never have to redefine** what an INS patient identity, a pra
 | --- | --- |
 | `Healthcare\Kernel` | CodeSystem / Coding / CodeableConcept, Period, Quantity, Unit (UCUM), Ratio, generic Identifier, Oid, Date, validated identifiers, exceptions |
 | `Healthcare\Geographic` | Address, CountryCode, CogCode |
-| `Healthcare\Identity` | PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, IdentityAttribute(s), HumanName, AdministrativeGender, IdentityStatus (RNIV) |
+| `Healthcare\Identity` | PatientIdentity, StrictIdentityTraits, InsMatricule, InsAssigningAuthority, InsIdentifier, IdentityAttribute(s), HumanName (usual given name), BirthDate, IdentificationEvidence, InsIdentifierHistory, AdministrativeGender, IdentityStatus (RNIV) |
 | `Healthcare\Care` | PractitionerIdentity, OrganizationIdentity, PractitionerRole, PatientReference, PractitionerReference, OrganizationReference, ContactPoint, profession/savoir-faire/category codes |
 | `Healthcare\Clinical` | Encounter, ServiceRequest, Observation, ReferenceRange, DiagnosticReport, Specimen, ClinicalDocument |
-| `Healthcare\Medication` | Medication (CIS), MedicationPresentation (CIP/UCD), MedicationComponent, ActiveSubstance |
+| `Healthcare\Medication` | Medication (CIS), MedicationPresentation (CIP/UCD), MedicationComponent, ActiveSubstance, DoseInstruction |
 | `Healthcare\Laboratory` | AccessionNumber |
 | `Healthcare\Imaging` | DicomUid + Study/Series/SOP instance UIDs, imaging AccessionNumber, ModalityCode, ImagingStudy |
 
