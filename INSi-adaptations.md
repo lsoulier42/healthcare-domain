@@ -164,7 +164,11 @@ normative précise.
     module, mention « INS à scanner » (hors périmètre de cette classe, couche
     de rendu) ;
   - §1 : outil de validation ANS : https://interop.esante.gouv.fr/
-    (validation obligatoire de chaque payload généré, à intégrer en CI).
+      (les éditeurs sont **invités** à valider leurs payloads avec cet outil
+      lors de l'implémentation et des tests de conformité — note sous
+      [EXI DIF 02] du guide d'implémentation ; la CI couvre le format
+      normatif avec des vecteurs de test déterministes, sans dépendre du
+      service externe) ;
 - SEL-MP-043 §2 (profil lexical des noms, appliqué via
   `InsiTraitsNormalizer`) ; guide d'implémentation INS v3.0, ex. EXI DIF 02
   (première page d'un document de santé) et EXI ID 29 (transmission du

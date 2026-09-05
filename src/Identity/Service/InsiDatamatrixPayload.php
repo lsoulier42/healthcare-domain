@@ -50,7 +50,11 @@ use Healthcare\Kernel\ValueObject\Date;
  * - GIE SESAM-Vitale, SEL-MP-043 v05.00.01, §2 (lexical rules applied via
  *   the normalizer).
  * - Generated payloads must be validated with the ANS tool
- *   (https://interop.esante.gouv.fr/datamatrixins/) in the CI.
+ *   (https://interop.esante.gouv.fr/datamatrixins/) during implementation
+ *   and conformance testing — the guide invites editors to use it (note
+ *   under [EXI DIF 02]) — while automated CI covers the normative format
+ *   with deterministic test vectors, without depending on the external
+ *   service.
  */
 final class InsiDatamatrixPayload
 {
