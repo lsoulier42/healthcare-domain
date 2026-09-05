@@ -6,12 +6,15 @@ namespace Healthcare\Tests\Identity;
 
 use Healthcare\Geographic\ValueObject\CogCode;
 use Healthcare\Identity\ValueObject\AdministrativeGender;
+use Healthcare\Identity\ValueObject\IdentityAttribute;
+use Healthcare\Identity\ValueObject\IdentityAttributes;
 use Healthcare\Identity\ValueObject\IdentityStatus;
 use Healthcare\Identity\ValueObject\InsAssigningAuthority;
 use Healthcare\Identity\ValueObject\InsIdentifier;
 use Healthcare\Identity\ValueObject\InsMatricule;
 use Healthcare\Identity\ValueObject\PatientIdentity;
 use Healthcare\Identity\ValueObject\StrictIdentityTraits;
+use Healthcare\Kernel\Exception\InvalidDomainState;
 use Healthcare\Kernel\ValueObject\Date;
 use PHPUnit\Framework\TestCase;
 
@@ -95,5 +98,69 @@ final class PatientIdentityTest extends TestCase
         self::assertFalse(PatientIdentity::recovered($this->traits(), $this->ins())->equals(
             PatientIdentity::qualified($this->traits(), $this->ins()),
         ));
+    }
+
+    public function testProvisionalAcceptsDoubtfulAttribute(): void
+    {
+        $identity = PatientIdentity::provisional(
+            $this->traits(),
+            new IdentityAttributes([IdentityAttribute::DOUBTFUL]),
+        );
+
+        self::assertTrue($identity->attributes->has(IdentityAttribute::DOUBTFUL));
+        self::assertTrue($identity->blocksInsiLookup());
+    }
+
+    public function testQualifiedRejectsDoubtfulAttribute(): void
+    {
+        $this->expectException(InvalidDomainState::class);
+
+        PatientIdentity::qualified(
+            $this->traits(),
+            $this->ins(),
+            new IdentityAttributes([IdentityAttribute::DOUBTFUL]),
+        );
+    }
+
+    public function testValidatedRejectsFictitiousAttribute(): void
+    {
+        $this->expectException(InvalidDomainState::class);
+
+        PatientIdentity::validated(
+            $this->traits(),
+            new IdentityAttributes([IdentityAttribute::FICTITIOUS]),
+        );
+    }
+
+    public function testRecoveredRejectsDoubtfulAttribute(): void
+    {
+        $this->expectException(InvalidDomainState::class);
+
+        PatientIdentity::recovered(
+            $this->traits(),
+            $this->ins(),
+            new IdentityAttributes([IdentityAttribute::DOUBTFUL]),
+        );
+    }
+
+    public function testHomonymDoesNotBlockInsiLookup(): void
+    {
+        $identity = PatientIdentity::qualified(
+            $this->traits(),
+            $this->ins(),
+            new IdentityAttributes([IdentityAttribute::HOMONYM]),
+        );
+
+        self::assertFalse($identity->blocksInsiLookup());
+    }
+
+    public function testEqualityIncludesAttributes(): void
+    {
+        $withAttribute = PatientIdentity::provisional(
+            $this->traits(),
+            new IdentityAttributes([IdentityAttribute::HOMONYM]),
+        );
+
+        self::assertFalse($withAttribute->equals(PatientIdentity::provisional($this->traits())));
     }
 }
