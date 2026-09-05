@@ -10,8 +10,9 @@ use Healthcare\Kernel\Exception\InvalidValueObject;
  * Immutable, unordered set of {@see IdentityAttribute} carried by an identity.
  *
  * The collection enforces at construction the combinability rule of the RNIV
- * ([EXI ID 24]) : the « fictif » and « douteux » attributes cannot be cumulated,
- * whereas « homonyme » can be combined with either of them.
+ * ([EXI ID 24]) : « Seuls les attributs douteux et homonymes peuvent être
+ * utilisés simultanément » — DOUBTFUL + HOMONYM is the only authorized
+ * multi-attribute set; « fictif » combines with no other attribute.
  *
  * The collection also centralizes the status/invocation invariants tied to
  * these attributes ([EXI ID 26]) :

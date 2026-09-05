@@ -10,8 +10,10 @@ use Healthcare\Kernel\Exception\InvalidValueObject;
  * AMO practice context of a practitioner required to build the PS assertion
  * of an INSi téléservice call — not a generic « medical specialty » concept.
  *
- * Every INSi operation (WS_INS1..WS_INS5) carries a PS assertion whose
- * AttributeStatement may contain:
+ * Every INSi operation (WS_INS1..WS_INS5) carries a PS assertion whenever
+ * the authentication mode uses one — the CPx and Pro Santé Connect modes do,
+ * the TLS-mutual-certificate (certificat logiciel) mode requires none
+ * (SEL-MP-043 §3.2). Its AttributeStatement may contain:
  *
  * - `identifiantFacturation` — for establishments: the FINESS géographique
  *   number, or the SIRET when the FINESS is unknown; for other actors
