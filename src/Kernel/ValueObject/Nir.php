@@ -42,6 +42,10 @@ final readonly class Nir extends AbstractStringValueObject
             return false;
         }
 
+        if ($length === 15 && preg_match('/^[0-9]{2}$/D', substr($value, 13, 2)) !== 1) {
+            return false;
+        }
+
         if (preg_match('/^[1-478]\d{4}(?:\d{5}|2[AB]\d{3})\d{3}$/', substr($value, 0, 13)) !== 1) {
             return false;
         }
@@ -56,7 +60,7 @@ final readonly class Nir extends AbstractStringValueObject
      */
     public static function hasValidControlKey(string $value): bool
     {
-        if (strlen($value) !== 15) {
+        if (strlen($value) !== 15 || !self::isStructurallyValid($value)) {
             return false;
         }
 
