@@ -49,4 +49,28 @@ final class HumanNameTest extends TestCase
         self::assertTrue($a->equals($b));
         self::assertFalse($a->equals($c));
     }
+
+    public function testUsualGivenName(): void
+    {
+        $name = new HumanName('LOVELACE', ['Ada'], 'Lovelace', 'Ada');
+
+        self::assertSame('Ada', $name->usualGivenName);
+    }
+
+    public function testUsualGivenNameIsOptionalAndTrimmed(): void
+    {
+        $name = new HumanName('LOVELACE', ['Ada']);
+
+        self::assertNull($name->usualGivenName);
+        self::assertNull((new HumanName('LOVELACE', ['Ada'], usualGivenName: '  '))->usualGivenName);
+        self::assertSame('Ada', (new HumanName('LOVELACE', ['Ada'], usualGivenName: ' Ada '))->usualGivenName);
+    }
+
+    public function testEqualityIncludesUsualGivenName(): void
+    {
+        $withUsual = new HumanName('LOVELACE', ['Ada'], usualGivenName: 'Ada');
+
+        self::assertFalse($withUsual->equals(new HumanName('LOVELACE', ['Ada'])));
+        self::assertTrue($withUsual->equals(new HumanName('LOVELACE', ['Ada'], usualGivenName: 'Ada')));
+    }
 }
